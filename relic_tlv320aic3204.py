@@ -34,7 +34,7 @@ from busio import I2C
 from micropython import const
 
 try:
-    from typing import NoReturn, Optional, Type
+    from typing import Optional, Type
 
     from circuitpython_typing.device_drivers import I2CDeviceDriver
 except ImportError:

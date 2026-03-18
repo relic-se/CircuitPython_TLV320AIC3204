@@ -25,7 +25,6 @@ autodoc_mock_imports = [
     "busio",
     "digitalio",
     "microcontroller",
-    "micropython",
     "pwmio",
 ]
 
