@@ -29,8 +29,9 @@ codec.mic_gain = 6.0  # dB
 
 
 # Setup ADC Input
-codec.adc_enabled = True
+codec.dac_enabled = True  # BUG: DAC must be enabled for ADC functionality
 codec.adc_volume = 0.0  # dB
+codec.adc_enabled = True
 codec.adc_muted = False
 
 while True:
