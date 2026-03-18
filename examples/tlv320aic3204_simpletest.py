@@ -22,8 +22,8 @@ codec = TLV320AIC3204(
 audio = audiobusio.I2SOut(board.GP18, board.GP19, board.GP20)
 
 # Setup DAC Output
-codec.dac_enabled = True
 codec.dac_volume = 0.0  # dB
+codec.dac_enabled = True
 codec.dac_muted = False
 
 # Line Output
