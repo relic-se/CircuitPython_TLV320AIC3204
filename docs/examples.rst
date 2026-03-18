@@ -19,7 +19,7 @@ Utilize the input mixer to pass the analog signal at IN1L and IN1R through to ei
 ADC Input
 ---------
 
-With the help of the `PIO I2S library<https://circuitpython-pio-i2s.readthedocs.io/en/latest/>`_, read I2S data from the single-ended line level input on IN1L.
+With the help of the `PIO I2S library <https://circuitpython-pio-i2s.readthedocs.io/en/latest/>`_, read I2S data from the single-ended line level input on IN1L.
 
 .. literalinclude:: ../examples/tlv320aic3204_simpletest.py
     :caption: examples/tlv320aic3204_simpletest.py
@@ -28,7 +28,7 @@ With the help of the `PIO I2S library<https://circuitpython-pio-i2s.readthedocs.
 Bi-directional I2S
 ------------------
 
-Utilize the DAC and ADC simultaneously with the help of the `PIO I2S library<https://circuitpython-pio-i2s.readthedocs.io/en/latest/>`_. Plays a 440hz sine wave at 16-bit, 44.1khz through the line output. Connect the line output to IN1L to test the ADC.
+Utilize the DAC and ADC simultaneously with the help of the `PIO I2S library <https://circuitpython-pio-i2s.readthedocs.io/en/latest/>`_. Plays a 440hz sine wave at 16-bit, 44.1khz through the line output. Connect the line output to IN1L to test the ADC.
 
 .. literalinclude:: ../examples/tlv320aic3204_simpletest.py
     :caption: examples/tlv320aic3204_simpletest.py
