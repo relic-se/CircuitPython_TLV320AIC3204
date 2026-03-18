@@ -41,11 +41,6 @@ or individual libraries can be installed using
 
 Installing from PyPI
 =====================
-.. note:: This library is not available on PyPI yet. Install documentation is included
-   as a standard element. Stay tuned for PyPI availability!
-
-.. todo:: Remove the above note if PyPI version is/will be available at time of release.
-
 On supported GNU/Linux systems like the Raspberry Pi, you can install the driver locally `from
 PyPI <https://pypi.org/project/circuitpython-tlv320aic3204/>`_.
 To install for current user:
@@ -95,8 +90,25 @@ Or the following command to update an existing version:
 Usage Example
 =============
 
-.. todo:: Add a quick, simple example. It and other examples should live in the
-examples folder and be included in docs/examples.rst.
+.. code-block:: python
+
+    import audiobusio
+    import board
+
+    import relic_tlv320aic3204
+
+    codec = relic_tlv320aic3204.TLV320AIC3204(board.I2C())  # defaults to 16 bit, 44.1khz
+
+    # Enable DAC output
+    codec.dac_volume = -20  # dB
+    codec.dac_muted = False
+
+    # Enable Headphone Output
+    codec.dac_to_headphone_output = True
+    codec.headphone_output_enabled = True
+    codec.headphone_output_muted = False
+
+    audio = audiobusio.I2SOut(board.I2S_BCLK, board.I2S_WS, board.I2S_DIN)
 
 Documentation
 =============

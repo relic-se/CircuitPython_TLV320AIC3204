@@ -7,5 +7,5 @@
 API Reference
 #############
 
-.. automodule:: tlv320aic3204
+.. automodule:: relic_tlv320aic3204
     :members:
