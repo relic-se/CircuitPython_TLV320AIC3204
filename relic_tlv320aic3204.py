@@ -22,16 +22,16 @@ Implementation Notes
 * Adafruit's Register library: https://github.com/adafruit/Adafruit_CircuitPython_Register
 """
 
-from busio import I2C
-import digitalio
-import microcontroller
-from micropython import const
-import pwmio
 import time
 
+import digitalio
+import microcontroller
+import pwmio
 from adafruit_bus_device.i2c_device import I2CDevice
 from adafruit_register.i2c_bit import RWBit as _RWBit
 from adafruit_register.i2c_bits import RWBits as _RWBits
+from busio import I2C
+from micropython import const
 
 try:
     from typing import NoReturn, Optional, Type
@@ -59,6 +59,7 @@ _REG_NDAC = const(0x0B)
 _REG_MDAC = const(0x0C)
 _REG_DAC_OSR_MSB = const(0x0D)
 _REG_DAC_OSR_LSB = const(0x0E)
+_REG_ADC_OSR = const(0x14)
 _REG_AUDIO_INTERFACE_1 = const(0x1B)
 _REG_AUDIO_INTERFACE_3 = const(0x1D)
 _REG_DAC_PROCESSING_BLOCK = const(0x3C)
@@ -67,11 +68,16 @@ _REG_DAC_CHANNEL_1 = const(0x3F)
 _REG_DAC_CHANNEL_2 = const(0x40)
 _REG_LEFT_DAC_VOLUME = const(0x41)
 _REG_RIGHT_DAC_VOLUME = const(0x42)
+_REG_ADC_CHANNEL_1 = const(0x51)
+_REG_ADC_CHANNEL_2 = const(0x51)
+_REG_LEFT_ADC_VOLUME = const(0x53)
+_REG_RIGHT_ADC_VOLUME = const(0x54)
 
 # Page 1 Registers
 _REG_POWER_CONFIG = const(0x01)
 _REG_LDO_CONTROL = const(0x02)
 _REG_OUTPUT_DRIVER_POWER = const(0x09)
+_REG_COMMON_MODE = const(0x0A)
 _REG_HPL_ROUTING = const(0x0C)
 _REG_HPR_ROUTING = const(0x0D)
 _REG_LOL_ROUTING = const(0x0E)
@@ -84,6 +90,15 @@ _REG_IN1L_TO_HPL_VOLUME = const(0x16)
 _REG_IN1R_TO_HPR_VOLUME = const(0x17)
 _REG_MIXER_LEFT_VOLUME = const(0x18)
 _REG_MIXER_RIGHT_VOLUME = const(0x19)
+_REG_MICBIAS = const(0x33)
+_REG_LEFT_MICPGA_POS = const(0x34)
+_REG_LEFT_MICPGA_NEG = const(0x36)
+_REG_RIGHT_MICPGA_POS = const(0x37)
+_REG_RIGHT_MICPGA_NEG = const(0x39)
+_REG_FLOATING_INPUT = const(0x3A)
+_REG_LEFT_MICPGA_GAIN = const(0x3B)
+_REG_RIGHT_MICPGA_GAIN = const(0x3C)
+_REG_MIC_POWERUP = const(0x47)
 _REG_REF_POWERUP = const(0x7B)
 
 AUDIO_INTERFACE_I2S = const(0b00)
@@ -101,6 +116,11 @@ _CODEC_CLKIN_BCLK = const(0b01)
 _CODEC_CLKIN_GPIO = const(0b10)
 _CODEC_CLKIN_PLL = const(0b11)
 
+_ADC_OSR_256 = const(0b00000000)
+_ADC_OSR_32 = const(0b00100000)
+_ADC_OSR_64 = const(0b01000000)
+_ADC_OSR_128 = const(0b10000000)
+
 DAC_PATH_DISABLED = const(0b00)
 DAC_PATH_NORMAL = const(0b01)
 DAC_PATH_SWAPPED = const(0b10)
@@ -114,6 +134,27 @@ REF_FORCE_POWERUP_SLOW = const(0b100)
 REF_FORCE_POWERUP_40MS = const(0b101)
 REF_FORCE_POWERUP_80MS = const(0b110)
 REF_FORCE_POWERUP_120MS = const(0b111)
+
+MIC_POWERUP_3_1MS = const(0b01)
+MIC_POWERUP_6_4MS = const(0b10)
+MIC_POWERUP_1_6MS = const(0b11)
+
+SOURCE_AVDD = const(0)
+SOURCE_LDOIN = const(1)
+
+MICBIAS_MODE_1V25 = const(0b00)
+MICBIAS_MODE_1V7 = const(0b01)
+MICBIAS_MODE_2V5 = const(0b10)
+MICBIAS_MODE_SOURCE = const(0b11)
+
+MIC_INPUT_1 = const(0)
+MIC_INPUT_2 = const(1)
+MIC_INPUT_3 = const(2)
+
+MIC_DISCONNECTED = const(0b00)
+MIC_IMPEDANCE_10K = const(0b01)
+MIC_IMPEDANCE_20K = const(0b01)
+MIC_IMPEDANCE_40K = const(0b01)
 
 _UINT7_VOLUME_TABLE = (
     0,  #       0  Begin linear segment: round((-1.99 * dB) - 0.2)
@@ -234,16 +275,6 @@ _UINT7_VOLUME_TABLE = (
     -68.7,  # 115
     -72.2,  # 116  End curved segment
     -78.3,  # 117  Begin constant segment -78.3 dB
-    -78.3,  # 118
-    -78.3,  # 119
-    -78.3,  # 120
-    -78.3,  # 121
-    -78.3,  # 122
-    -78.3,  # 123
-    -78.3,  # 124
-    -78.3,  # 125
-    -78.3,  # 126
-    -78.3,  # 127
 )
 
 _UINT6_VOLUME_TABLE = (
@@ -289,15 +320,22 @@ _UINT6_VOLUME_TABLE = (
     -30.1,
 )
 
+
 class RWBit(_RWBit):
-    
-    def __init__(
-        self, page: int, register_address: int, bit: int, register_width: int = 1, lsb_first: bool = True
+    def __init__(  # noqa: PLR0913
+        self,
+        page: int,
+        register_address: int,
+        bit: int,
+        register_width: int = 1,
+        lsb_first: bool = True,
     ):
         super().__init__(register_address, bit, register_width, lsb_first)
         self._page = page
 
-    def __get__(self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None) -> bool:
+    def __get__(
+        self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
+    ) -> bool:
         obj.page = self._page
         return super().__get__(obj, objtype)
 
@@ -305,9 +343,9 @@ class RWBit(_RWBit):
         obj.page = self._page
         super().__set__(obj, bool(value))
 
-class RWBits(_RWBits):
 
-    def __init__(
+class RWBits(_RWBits):
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         page: int,
         num_bits: int,
@@ -320,7 +358,9 @@ class RWBits(_RWBits):
         super().__init__(num_bits, register_address, lowest_bit, register_width, lsb_first, signed)
         self._page = page
 
-    def __get__(self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None) -> int:
+    def __get__(
+        self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
+    ) -> int:
         obj.page = self._page
         return super().__get__(obj, objtype)
 
@@ -328,9 +368,9 @@ class RWBits(_RWBits):
         obj.page = self._page
         super().__set__(obj, int(value))
 
-class CacheBits(_RWBits):
 
-    def __init__(
+class CacheBits(_RWBits):
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         num_bits: int,
         register_address: int,
@@ -342,27 +382,25 @@ class CacheBits(_RWBits):
         super().__init__(num_bits, register_address, lowest_bit, register_width, lsb_first, signed)
         self._value = None
 
-    def __get__(self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None) -> int:
+    def __get__(
+        self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
+    ) -> int:
         return super().__get__(obj, objtype) if self._value is None else self._value
 
     def __set__(self, obj: I2CDeviceDriver, value: int):
         self._value = value
         super().__set__(obj, int(value))
 
-class VolumeBits(RWBits):
 
-    def __init__(
-        self,
-        page: int,
-        register_address: int,
-        table: tuple,
-        mute: bool = False
-    ):
+class VolumeBits(RWBits):
+    def __init__(self, page: int, register_address: int, table: tuple, mute: bool = False):
         super().__init__(page, 7, register_address, 0)
         self._table = table
         self._mute = mute
 
-    def __get__(self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None):
+    def __get__(
+        self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
+    ):
         value = super().__get__(obj, objtype)
         if self._mute and value >= len(self._table):
             return -99.9
@@ -379,15 +417,23 @@ class VolumeBits(RWBits):
             value = len(self._table) - (0 if self._mute else 1)
         super().__set__(obj, value)
 
-class TLV320AIC3204:
 
+class TLV320AIC3204:  # noqa: PLR0904
     page: int = CacheBits(8, _REG_PAGE, 0)
 
-    def __init__(self, i2c: I2C, mclk: microcontroller.Pin = None, rst: microcontroller.Pin = None, address: int = _DEFAULT_I2C_ADDR) -> None:
+    def __init__(
+        self,
+        i2c: I2C,
+        mclk: microcontroller.Pin = None,
+        rst: microcontroller.Pin = None,
+        address: int = _DEFAULT_I2C_ADDR,
+    ) -> None:
         self._page = None
         self.i2c_device: I2CDevice = I2CDevice(i2c, address)
 
-        self._mclk = pwmio.PWMOut(mclk, frequency=15_000_000, duty_cycle=2**15) if mclk is not None else None
+        self._mclk = (
+            pwmio.PWMOut(mclk, frequency=15_000_000, duty_cycle=2**15) if mclk is not None else None
+        )
 
         if rst is not None:
             self._reset = digitalio.DigitalInOut(rst)
@@ -401,10 +447,14 @@ class TLV320AIC3204:
         self.power_isolation = True
         self.avdd_ldo_enabled = True
         self.reference_powerup = REF_POWERUP_40MS
+        self.mic_powerup = MIC_POWERUP_3_1MS
         self.analog_block_power_disabled = False
+        self.line_output_power_source = SOURCE_LDOIN
+        self.headphone_output_ldoin_3v3 = True
+        self.headphone_output_power_source = SOURCE_LDOIN
 
-        self.left_dac_volume = -63.5
-        self.right_dac_volume = -63.5
+        self.dac_volume = -63.5
+        self.adc_volume = -12.0
 
         self.sample_rate = 44100
         self.bit_depth = 16
@@ -427,7 +477,15 @@ class TLV320AIC3204:
 
     reference_powerup: int = RWBits(1, 3, _REG_REF_POWERUP, 0)
 
+    mic_powerup: int = RWBits(1, 6, _REG_MIC_POWERUP, 0)
+
     audio_interface: int = RWBits(0, 2, _REG_AUDIO_INTERFACE_1, 6)
+
+    line_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
+
+    headphone_output_ldoin_3v3: bool = RWBit(1, _REG_COMMON_MODE, 0)
+
+    headphone_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
 
     _bit_depth: int = RWBits(0, 2, _REG_AUDIO_INTERFACE_1, 4)
 
@@ -445,8 +503,11 @@ class TLV320AIC3204:
             raise ValueError("CircuitPython I2S only supports 16-bit stereo")
         self._bit_depth = (value - 16) // 4
 
-    loopback: bool = RWBit(0, _REG_AUDIO_INTERFACE_3, 4)
-    """If set as `True`, stereo ADC output is routed to stereo DAC input."""
+    dac_loopback: bool = RWBit(0, _REG_AUDIO_INTERFACE_3, 5)
+    """If set as `True`, DAC input is routed to ADC output."""
+
+    adc_loopback: bool = RWBit(0, _REG_AUDIO_INTERFACE_3, 4)
+    """If set as `True`, ADC output is routed to DAC input."""
 
     left_dac_enabled: bool = RWBit(0, _REG_DAC_CHANNEL_1, 7)
     right_dac_enabled: bool = RWBit(0, _REG_DAC_CHANNEL_1, 6)
@@ -454,7 +515,7 @@ class TLV320AIC3204:
     @property
     def dac_enabled(self) -> bool:
         return self.left_dac_enabled or self.right_dac_enabled
-    
+
     @dac_enabled.setter
     def dac_enabled(self, value: bool) -> None:
         self.left_dac_enabled = value
@@ -469,7 +530,7 @@ class TLV320AIC3204:
     @property
     def dac_path(self) -> int:
         return self.left_dac_path
-    
+
     @dac_path.setter
     def dac_path(self, value: int) -> None:
         self.left_dac_path = value
@@ -481,7 +542,7 @@ class TLV320AIC3204:
     @property
     def dac_muted(self) -> bool:
         return self.left_dac_muted or self.right_dac_muted
-    
+
     @dac_muted.setter
     def dac_muted(self, value: bool) -> None:
         self.left_dac_muted = value
@@ -510,7 +571,7 @@ class TLV320AIC3204:
     @property
     def dac_volume(self) -> float:
         return self.left_dac_volume
-    
+
     @dac_volume.setter
     def dac_volume(self, value: float) -> None:
         self.left_dac_volume = value
@@ -520,14 +581,14 @@ class TLV320AIC3204:
     _pll_p: int = RWBits(0, 3, _REG_CLOCK_2, 4)
     _pll_r: int = RWBits(0, 3, _REG_CLOCK_2, 0)
     _pll_j: int = RWBits(0, 6, _REG_CLOCK_3, 0)
-    
+
     _pll_d_msb: int = RWBits(0, 6, _REG_CLOCK_4, 0)
     _pll_d_lsb: int = RWBits(0, 8, _REG_CLOCK_5, 0)
 
     @property
     def _pll_d(self) -> int:
         return self._pll_d_lsb | (self._pll_d_msb << 8)
-    
+
     @_pll_d.setter
     def _pll_d(self, value: int) -> None:
         self._pll_d_lsb = value & 0xFF
@@ -551,26 +612,27 @@ class TLV320AIC3204:
     @property
     def _dac_osr(self) -> int:
         return self._dac_osr_lsb | (self._dac_osr_msb << 8)
-    
+
     @_dac_osr.setter
     def _dac_osr(self, value: int) -> None:
         self._dac_osr_lsb = value & 0xFF
         self._dac_osr_msb = (value >> 8) & 0x03
 
+    _adc_osr: int = RWBits(0, 8, _REG_ADC_OSR, 0)
+
     @property
     def sample_rate(self) -> int:
         return self._sample_rate
-    
+
     @sample_rate.setter
     def sample_rate(self, value: int) -> None:
         if value not in {8000, 11025, 22050, 44100, 48000}:
-            raise ValueError(
-                "Need a valid sample rate: 8000, 11025, 22050, 44100, or 48000"
-            )
-
+            raise ValueError("Need a valid sample rate: 8000, 11025, 22050, 44100, or 48000")
+        
+        aosr = _ADC_OSR_128
         if self._mclk is None:
             if value == 22050:
-                p, r, j, d, ndac, mdac, dosr = 1, 4, 38, 0, 19, 1, 256
+                p, r, j, d, ndac, mdac, dosr, aosr = 1, 4, 38, 0, 19, 1, 256, _ADC_OSR_256
             elif value == 44100:
                 p, r, j, d, ndac, mdac, dosr = 1, 2, 38, 0, 19, 1, 128
             elif value == 48000:
@@ -578,22 +640,22 @@ class TLV320AIC3204:
             elif value in {8000, 11025}:
                 # These PLL tuning values will cause distortion
                 p, r, j, d, ndac, mdac, dosr = 1, 3, 20, 0, 5, 3, 128
-        else:
-            if value == 8000:
-                p, r, j, d, ndac, mdac, dosr = 1, 1, 6, 9632, 17, 1, 768
-            elif value == 11025:
-                p, r, j, d, ndac, mdac, dosr = 5, 1, 35, 7504, 19, 1, 512
-            elif value == 22050:
-                p, r, j, d, ndac, mdac, dosr = 5, 1, 35, 7504, 19, 1, 256
-            elif value == 44100:
-                p, r, j, d, ndac, mdac, dosr = 5, 1, 35, 7504, 19, 1, 128
-            elif value == 48000:
-                p, r, j, d, ndac, mdac, dosr = 1, 1, 6, 9632, 17, 1, 128
-        
+        elif value == 8000:
+            p, r, j, d, ndac, mdac, dosr = 1, 1, 6, 9632, 17, 1, 768
+        elif value == 11025:
+            p, r, j, d, ndac, mdac, dosr = 5, 1, 35, 7504, 19, 1, 512
+        elif value == 22050:
+            p, r, j, d, ndac, mdac, dosr, aosr = 5, 1, 35, 7504, 19, 1, 256, _ADC_OSR_256
+        elif value == 44100:
+            p, r, j, d, ndac, mdac, dosr = 5, 1, 35, 7504, 19, 1, 128
+        elif value == 48000:
+            p, r, j, d, ndac, mdac, dosr = 1, 1, 6, 9632, 17, 1, 128
+
         self._sample_rate = value
-        
-        # 1. Ensure DAC and PLL are powered down
+
+        # 1. Ensure DAC, ADC and PLL are powered down
         self.dac_enabled = False
+        self.adc_enabled = False
         self._pll_enabled = False
         time.sleep(0.001)
 
@@ -623,9 +685,7 @@ class TLV320AIC3204:
         self._mdac = mdac
         self._mdac_enabled = True
         self._dac_osr = dosr
-
-        # 8. Power up DAC
-        self.dac_enabled = True
+        self._adc_osr = aosr
 
     left_headphone_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 5)
     right_headphone_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 4)
@@ -633,7 +693,7 @@ class TLV320AIC3204:
     @property
     def headphone_output_enabled(self) -> bool:
         return self.left_headphone_output_enabled or self.right_headphone_output_enabled
-    
+
     @headphone_output_enabled.setter
     def headphone_output_enabled(self, value: bool) -> None:
         self.left_headphone_output_enabled = value
@@ -645,7 +705,7 @@ class TLV320AIC3204:
     @property
     def line_output_enabled(self) -> bool:
         return self.left_line_output_enabled or self.right_line_output_enabled
-    
+
     @line_output_enabled.setter
     def line_output_enabled(self, value: bool) -> None:
         self.left_line_output_enabled = value
@@ -657,7 +717,7 @@ class TLV320AIC3204:
     @property
     def dac_to_headphone_output(self) -> bool:
         return self.left_dac_to_left_headphone_output or self.right_dac_to_right_headphone_output
-    
+
     @dac_to_headphone_output.setter
     def dac_to_headphone_output(self, value: bool) -> None:
         self.left_dac_to_left_headphone_output = value
@@ -681,7 +741,7 @@ class TLV320AIC3204:
     @property
     def input_mixer_enabled(self) -> bool:
         return self.left_input_mixer_enabled or self.right_input_mixer_amp_enabled
-    
+
     @input_mixer_enabled.setter
     def input_mixer_enabled(self, value: bool) -> None:
         self.left_input_mixer_enabled = value
@@ -692,8 +752,10 @@ class TLV320AIC3204:
 
     @property
     def input_mixer_to_line_output(self) -> bool:
-        return self.left_input_mixer_to_left_line_output or self.right_input_mixer_to_right_line_output
-    
+        return (
+            self.left_input_mixer_to_left_line_output or self.right_input_mixer_to_right_line_output
+        )
+
     @input_mixer_to_line_output.setter
     def input_mixer_to_line_output(self, value: bool) -> None:
         self.left_input_mixer_to_left_line_output = value
@@ -704,8 +766,11 @@ class TLV320AIC3204:
 
     @property
     def input_mixer_to_headphone_output(self) -> bool:
-        return self.left_input_mixer_to_left_headphone_output or self.right_input_mixer_to_right_headphone_output
-    
+        return (
+            self.left_input_mixer_to_left_headphone_output
+            or self.right_input_mixer_to_right_headphone_output
+        )
+
     @input_mixer_to_headphone_output.setter
     def input_mixer_to_headphone_output(self, value: bool) -> None:
         self.left_input_mixer_to_left_headphone_output = value
@@ -716,44 +781,54 @@ class TLV320AIC3204:
 
     @property
     def input1_to_headphone_output(self) -> bool:
-        return self.left_input1_to_left_headphone_output or self.right_input1_to_right_headphone_output
-    
+        return (
+            self.left_input1_to_left_headphone_output or self.right_input1_to_right_headphone_output
+        )
+
     @input1_to_headphone_output.setter
     def input1_to_headphone_output(self, value: bool) -> None:
         self.left_input1_to_left_headphone_output = value
         self.right_input1_to_right_headphone_output = value
 
-    left_input1_to_left_headphone_output_volume: float = VolumeBits(1, _REG_IN1L_TO_HPL_VOLUME, _UINT7_VOLUME_TABLE)
-    right_input1_to_right_headphone_output_volume: float = VolumeBits(1, _REG_IN1R_TO_HPR_VOLUME, _UINT7_VOLUME_TABLE)
+    left_input1_to_left_headphone_output_volume: float = VolumeBits(
+        1, _REG_IN1L_TO_HPL_VOLUME, _UINT7_VOLUME_TABLE, True
+    )
+    right_input1_to_right_headphone_output_volume: float = VolumeBits(
+        1, _REG_IN1R_TO_HPR_VOLUME, _UINT7_VOLUME_TABLE, True
+    )
 
     @property
     def input1_to_headphone_output_volume(self) -> float:
         return self.left_input1_to_left_headphone_output_volume
-    
+
     @input1_to_headphone_output_volume.setter
     def input1_to_headphone_output_volume(self, value: float) -> None:
         self.left_input1_to_left_headphone_output_volume = value
         self.right_input1_to_right_headphone_output_volume = value
 
-    left_input_mixer_volume: float = VolumeBits(1, _REG_MIXER_LEFT_VOLUME, _UINT6_VOLUME_TABLE, True)
-    right_input_mixer_volume: float = VolumeBits(1, _REG_MIXER_RIGHT_VOLUME, _UINT6_VOLUME_TABLE, True)
+    left_input_mixer_volume: float = VolumeBits(
+        1, _REG_MIXER_LEFT_VOLUME, _UINT6_VOLUME_TABLE, True
+    )
+    right_input_mixer_volume: float = VolumeBits(
+        1, _REG_MIXER_RIGHT_VOLUME, _UINT6_VOLUME_TABLE, True
+    )
 
     @property
     def input_mixer_volume(self) -> float:
         return self.left_input_mixer_volume
-    
+
     @input_mixer_volume.setter
     def input_mixer_volume(self, value: float) -> None:
         self.left_input_mixer_volume = value
         self.right_input_mixer_volume = value
-    
+
     left_headphone_output_muted: bool = RWBit(1, _REG_HPL_GAIN, 6)
     right_headphone_output_muted: bool = RWBit(1, _REG_HPR_GAIN, 6)
 
     @property
     def headphone_output_muted(self) -> bool:
         return self.left_headphone_output_muted or self.right_headphone_output_muted
-    
+
     @headphone_output_muted.setter
     def headphone_output_muted(self, value: bool) -> None:
         self.left_headphone_output_muted = value
@@ -765,7 +840,7 @@ class TLV320AIC3204:
     @property
     def headphone_output_gain(self) -> float:
         return self.left_headphone_output_gain
-    
+
     @headphone_output_gain.setter
     def headphone_output_gain(self, value: float) -> None:
         self.left_headphone_output_gain = value
@@ -773,11 +848,11 @@ class TLV320AIC3204:
 
     left_line_output_muted: bool = RWBit(1, _REG_LOL_GAIN, 6)
     right_line_output_muted: bool = RWBit(1, _REG_LOR_GAIN, 6)
-    
+
     @property
     def line_output_muted(self) -> bool:
         return self.left_line_output_muted or self.right_line_output_muted
-    
+
     @line_output_muted.setter
     def line_output_muted(self, value: bool) -> None:
         self.left_line_output_muted = value
@@ -789,8 +864,189 @@ class TLV320AIC3204:
     @property
     def line_output_gain(self) -> float:
         return self.left_line_output_gain
-    
+
     @line_output_gain.setter
     def line_output_gain(self, value: float) -> None:
         self.left_line_output_gain = value
         self.right_line_output_gain = value
+
+    micbias_enabled: bool = RWBit(1, _REG_MICBIAS, 6)
+    micbias_mode: int = RWBits(1, 2, _REG_MICBIAS, 4)
+    micbias_source: bool = RWBit(1, _REG_MICBIAS, 3)
+
+    _in1l_to_left_mic_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 6)
+    _in2l_to_left_mic_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 4)
+    _in3l_to_left_mic_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 2)
+
+    _cm_to_left_mic_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 6)
+    _in2r_to_left_mic_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 4)
+    _in3r_to_left_mic_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 2)
+
+    _in1r_to_right_mic_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 6)
+    _in2r_to_right_mic_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 4)
+    _in3r_to_right_mic_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 2)
+
+    _cm_to_right_mic_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 6)
+    _in1l_to_right_mic_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 4)
+    _in3l_to_right_mic_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 2)
+
+    _in1l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 7)
+    _in1r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 6)
+    _in2l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 5)
+    _in2r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 4)
+    _in3l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 3)
+    _in3r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 2)
+
+    def _update_floating(self) -> None:
+        self._in1l_floating = (
+            self._in1l_to_left_mic_pos != MIC_DISCONNECTED
+            or self._in1l_to_right_mic_neg != MIC_DISCONNECTED
+        )
+        self._in1r_floating = self._in1r_to_right_mic_pos != MIC_DISCONNECTED
+        self._in2l_floating = self._in2l_to_left_mic_pos != MIC_DISCONNECTED
+        self._in2r_floating = (
+            self._in2r_to_left_mic_neg != MIC_DISCONNECTED
+            or self._in2r_to_right_mic_pos != MIC_DISCONNECTED
+        )
+        self._in3l_floating = (
+            self._in3l_to_left_mic_pos != MIC_DISCONNECTED
+            or self._in3l_to_right_mic_neg != MIC_DISCONNECTED
+        )
+        self._in3r_floating = (
+            self._in3r_to_left_mic_neg != MIC_DISCONNECTED
+            or self._in3r_to_right_mic_pos != MIC_DISCONNECTED
+        )
+
+    def connect_left_mic_input(
+        self, input: int, impedance: int = MIC_IMPEDANCE_10K, balanced: bool = False
+    ) -> None:
+        if input == MIC_INPUT_1 and balanced:
+            raise ValueError("Balanced IN1 input only supported on right channel")
+
+        self._in1l_to_left_mic_pos = impedance if input == MIC_INPUT_1 else MIC_DISCONNECTED
+        self._in2l_to_left_mic_pos = impedance if input == MIC_INPUT_2 else MIC_DISCONNECTED
+        self._in3l_to_left_mic_pos = impedance if input == MIC_INPUT_3 else MIC_DISCONNECTED
+
+        self._cm_to_left_mic_neg = impedance if not balanced else MIC_DISCONNECTED
+        self._in2r_to_left_mic_neg = (
+            impedance if input == MIC_INPUT_2 and balanced else MIC_DISCONNECTED
+        )
+        self._in3r_to_left_mic_neg = (
+            impedance if input == MIC_INPUT_3 and balanced else MIC_DISCONNECTED
+        )
+
+        self._update_floating()
+
+    def connect_right_mic_input(
+        self, input: int, impedance: int = MIC_IMPEDANCE_10K, balanced: bool = False
+    ) -> None:
+        if input == MIC_INPUT_2 and balanced:
+            raise ValueError("Balanced IN2 input only supported on left channel")
+
+        self._in1r_to_right_mic_pos = impedance if input == MIC_INPUT_1 else MIC_DISCONNECTED
+        self._in2r_to_right_mic_pos = impedance if input == MIC_INPUT_2 else MIC_DISCONNECTED
+        self._in3r_to_right_mic_pos = impedance if input == MIC_INPUT_3 else MIC_DISCONNECTED
+
+        self._cm_to_right_mic_neg = impedance if not balanced else MIC_DISCONNECTED
+        self._in1l_to_right_mic_neg = (
+            impedance if input == MIC_INPUT_1 and balanced else MIC_DISCONNECTED
+        )
+        self._in3l_to_right_mic_neg = (
+            impedance if input == MIC_INPUT_3 and balanced else MIC_DISCONNECTED
+        )
+
+        self._update_floating()
+
+    def connect_mic_input(self, input: int, impedance: int = MIC_IMPEDANCE_10K) -> None:
+        self.connect_left_mic_input(input, impedance)
+        self.connect_right_mic_input(input, impedance)
+
+    _left_mic_gain_disabled: bool = RWBit(1, _REG_LEFT_MICPGA_GAIN, 7)
+    _left_mic_gain: int = RWBits(1, 7, _REG_LEFT_MICPGA_GAIN, 0)
+
+    @property
+    def left_mic_gain(self) -> float:
+        return min(max(self._left_mic_gain, 0), 95) / 2 if not self._left_mic_gain_disabled else 0.0
+
+    @left_mic_gain.setter
+    def left_mic_gain(self, value: float) -> None:
+        value = min(max(round(value * 2), 0), 95)
+        self._left_mic_gain_disabled = value <= 0
+        self._left_mic_gain = value
+
+    _right_mic_gain_disabled: bool = RWBit(1, _REG_RIGHT_MICPGA_GAIN, 7)
+    _right_mic_gain: int = RWBits(1, 7, _REG_RIGHT_MICPGA_GAIN, 0)
+
+    @property
+    def right_mic_gain(self) -> float:
+        return (
+            min(max(self._right_mic_gain, 0), 95) / 2 if not self._right_mic_gain_disabled else 0.0
+        )
+
+    @right_mic_gain.setter
+    def right_mic_gain(self, value: float) -> None:
+        value = min(max(round(value * 2), 0), 95)
+        self._right_mic_gain_disabled = value <= 0
+        self._right_mic_gain = value
+
+    @property
+    def mic_gain(self) -> float:
+        return self.left_mic_gain
+
+    @mic_gain.setter
+    def mic_gain(self, value: float) -> None:
+        self.left_mic_gain = value
+        self.right_mic_gain = value
+
+    left_adc_enabled: bool = RWBit(0, _REG_ADC_CHANNEL_1, 7)
+    right_adc_enabled: bool = RWBit(0, _REG_ADC_CHANNEL_1, 6)
+
+    @property
+    def adc_enabled(self) -> bool:
+        return self.left_adc_enabled or self.right_adc_enabled
+
+    @adc_enabled.setter
+    def adc_enabled(self, value: bool) -> None:
+        self.left_adc_enabled = value
+        self.right_adc_enabled = value
+
+    left_adc_muted: bool = RWBit(0, _REG_ADC_CHANNEL_2, 7)
+    right_adc_muted: bool = RWBit(0, _REG_ADC_CHANNEL_2, 3)
+
+    @property
+    def adc_muted(self) -> bool:
+        return self.left_adc_muted or self.right_adc_muted
+
+    @adc_muted.setter
+    def adc_muted(self, value: bool) -> None:
+        self.left_adc_muted = value
+        self.right_adc_muted = value
+
+    _left_adc_volume: int = RWBits(0, 7, _REG_LEFT_ADC_VOLUME, 0, signed=True)
+
+    @property
+    def left_adc_volume(self) -> float:
+        return self._left_adc_volume / 2
+
+    @left_adc_volume.setter
+    def left_adc_volume(self, value: float) -> None:
+        self._left_adc_volume = min(max(round(value * 2), -24), 40)
+
+    _right_adc_volume: int = RWBits(0, 7, _REG_RIGHT_ADC_VOLUME, 0, signed=True)
+
+    @property
+    def right_adc_volume(self) -> float:
+        return self._right_adc_volume / 2
+
+    @right_adc_volume.setter
+    def right_adc_volume(self, value: float) -> None:
+        self._right_adc_volume = min(max(round(value * 2), -24), 40)
+
+    @property
+    def adc_volume(self) -> float:
+        return self.left_adc_volume
+
+    @adc_volume.setter
+    def adc_volume(self, value: float) -> None:
+        self.left_adc_volume = value
+        self.right_adc_volume = value

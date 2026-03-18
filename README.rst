@@ -100,6 +100,7 @@ Usage Example
     codec = relic_tlv320aic3204.TLV320AIC3204(board.I2C())  # defaults to 16 bit, 44.1khz
 
     # Enable DAC output
+    codec.dac_enabled = True
     codec.dac_volume = -20  # dB
     codec.dac_muted = False
 
