@@ -15,9 +15,7 @@ from relic_tlv320aic3204 import TLV320AIC3204
 
 # Initialize codec
 codec = TLV320AIC3204(
-    i2c=board.STEMMA_I2C(),
-    mclk=board.GP17,
-    rst=board.GP16
+    i2c=board.STEMMA_I2C(), mclk=board.GP17, rst=board.GP16
 )  # defaults to 16 bit, 44.1khz sample rate
 audio = audiobusio.I2SOut(board.GP18, board.GP19, board.GP20)
 

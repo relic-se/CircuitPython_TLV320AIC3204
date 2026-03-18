@@ -4,11 +4,12 @@
 # SPDX-License-Identifier: Unlicense
 
 import array
-import board
 import math
+
+import board
+import pio_i2s
 import ulab.numpy as np
 
-import pio_i2s
 import relic_tlv320aic3204
 
 # Initialize codec
@@ -49,9 +50,7 @@ codec.adc_muted = False
 length = codec.sample_rate // 440
 sine_wave = array.array(i2s.buffer_format, [0] * i2s.buffer_size)
 for i in range(i2s.buffer_size):
-    sine_wave[i] = min(
-        max(int(math.sin(math.pi * 2 * i / length) * (2**15)), -32768), 32767
-    )
+    sine_wave[i] = min(max(int(math.sin(math.pi * 2 * i / length) * (2**15)), -32768), 32767)
 i2s.write(sine_wave, loop=True)
 
 while True:

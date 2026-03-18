@@ -628,7 +628,7 @@ class TLV320AIC3204:  # noqa: PLR0904
     def sample_rate(self, value: int) -> None:
         if value not in {8000, 11025, 22050, 44100, 48000}:
             raise ValueError("Need a valid sample rate: 8000, 11025, 22050, 44100, or 48000")
-        
+
         aosr = _ADC_OSR_128
         if self._mclk is None:
             if value == 22050:

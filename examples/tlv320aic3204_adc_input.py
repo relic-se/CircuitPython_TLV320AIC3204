@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: Unlicense
 
 import board
+import pio_i2s
 import ulab.numpy as np
 
-import pio_i2s
 import relic_tlv320aic3204
 
 # Initialize codec
