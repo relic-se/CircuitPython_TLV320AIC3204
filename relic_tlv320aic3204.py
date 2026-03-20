@@ -734,46 +734,46 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_dac_to_left_line_output = value
         self.right_dac_to_right_line_output = value
 
-    left_input_mixer_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 1)
-    right_input_mixer_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 0)
+    left_input_passthrough_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 1)
+    right_input_passthrough_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 0)
 
     @property
-    def input_mixer_enabled(self) -> bool:
-        return self.left_input_mixer_enabled or self.right_input_mixer_amp_enabled
+    def input_passthrough_enabled(self) -> bool:
+        return self.left_input_passthrough_enabled or self.right_input_passthrough_amp_enabled
 
-    @input_mixer_enabled.setter
-    def input_mixer_enabled(self, value: bool) -> None:
-        self.left_input_mixer_enabled = value
-        self.right_input_mixer_enabled = value
+    @input_passthrough_enabled.setter
+    def input_passthrough_enabled(self, value: bool) -> None:
+        self.left_input_passthrough_enabled = value
+        self.right_input_passthrough_enabled = value
 
-    left_input_mixer_to_left_line_output: bool = RWBit(1, _REG_LOL_ROUTING, 1)
-    right_input_mixer_to_right_line_output: bool = RWBit(1, _REG_LOR_ROUTING, 1)
+    left_input_to_left_line_output: bool = RWBit(1, _REG_LOL_ROUTING, 1)
+    right_input_to_right_line_output: bool = RWBit(1, _REG_LOR_ROUTING, 1)
 
     @property
-    def input_mixer_to_line_output(self) -> bool:
+    def input_to_line_output(self) -> bool:
         return (
-            self.left_input_mixer_to_left_line_output or self.right_input_mixer_to_right_line_output
+            self.left_input_to_left_line_output or self.right_input_to_right_line_output
         )
 
-    @input_mixer_to_line_output.setter
-    def input_mixer_to_line_output(self, value: bool) -> None:
-        self.left_input_mixer_to_left_line_output = value
-        self.right_input_mixer_to_right_line_output = value
+    @input_to_line_output.setter
+    def input_to_line_output(self, value: bool) -> None:
+        self.left_input_to_left_line_output = value
+        self.right_input_to_right_line_output = value
 
-    left_input_mixer_to_left_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 1)
-    right_input_mixer_to_right_headphone_output: bool = RWBit(1, _REG_HPR_ROUTING, 1)
+    left_input_to_left_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 1)
+    right_input_to_right_headphone_output: bool = RWBit(1, _REG_HPR_ROUTING, 1)
 
     @property
-    def input_mixer_to_headphone_output(self) -> bool:
+    def input_to_headphone_output(self) -> bool:
         return (
-            self.left_input_mixer_to_left_headphone_output
-            or self.right_input_mixer_to_right_headphone_output
+            self.left_input_to_left_headphone_output
+            or self.right_input_to_right_headphone_output
         )
 
-    @input_mixer_to_headphone_output.setter
-    def input_mixer_to_headphone_output(self, value: bool) -> None:
-        self.left_input_mixer_to_left_headphone_output = value
-        self.right_input_mixer_to_right_headphone_output = value
+    @input_to_headphone_output.setter
+    def input_to_headphone_output(self, value: bool) -> None:
+        self.left_input_to_left_headphone_output = value
+        self.right_input_to_right_headphone_output = value
 
     left_input1_to_left_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 2)
     right_input1_to_right_headphone_output: bool = RWBit(1, _REG_HPR_ROUTING, 2)
@@ -805,21 +805,21 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_input1_to_left_headphone_output_volume = value
         self.right_input1_to_right_headphone_output_volume = value
 
-    left_input_mixer_volume: float = VolumeBits(
+    left_input_passthrough_volume: float = VolumeBits(
         1, _REG_MIXER_LEFT_VOLUME, _UINT6_VOLUME_TABLE, True
     )
-    right_input_mixer_volume: float = VolumeBits(
+    right_input_passthrough_volume: float = VolumeBits(
         1, _REG_MIXER_RIGHT_VOLUME, _UINT6_VOLUME_TABLE, True
     )
 
     @property
-    def input_mixer_volume(self) -> float:
-        return self.left_input_mixer_volume
+    def input_passthrough_volume(self) -> float:
+        return self.left_input_passthrough_volume
 
-    @input_mixer_volume.setter
-    def input_mixer_volume(self, value: float) -> None:
-        self.left_input_mixer_volume = value
-        self.right_input_mixer_volume = value
+    @input_passthrough_volume.setter
+    def input_passthrough_volume(self, value: float) -> None:
+        self.left_input_passthrough_volume = value
+        self.right_input_passthrough_volume = value
 
     left_headphone_output_muted: bool = RWBit(1, _REG_HPL_GAIN, 6)
     right_headphone_output_muted: bool = RWBit(1, _REG_HPR_GAIN, 6)
