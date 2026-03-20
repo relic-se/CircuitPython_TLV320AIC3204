@@ -6,8 +6,7 @@
 `relic_tlv320aic3204`
 ================================================================================
 
-Driver library for the TLV320AIC3204 audio codec
-
+CircuitPython driver library for the TLV320AIC3204 audio codec
 
 * Author(s): Cooper Dalrymple
 
@@ -101,11 +100,6 @@ _REG_RIGHT_MICPGA_GAIN = const(0x3C)
 _REG_INPUT_POWERUP = const(0x47)
 _REG_REF_POWERUP = const(0x7B)
 
-AUDIO_INTERFACE_I2S = const(0b00)
-AUDIO_INTERFACE_DSP = const(0b01)
-AUDIO_INTERFACE_RJF = const(0b10)
-AUDIO_INTERFACE_LJF = const(0b11)
-
 _PLL_CLKIN_MCLK = const(0b00)
 _PLL_CLKIN_BCLK = const(0b01)
 _PLL_CLKIN_GPIO = const(0b10)
@@ -121,11 +115,6 @@ _ADC_OSR_32 = const(0b00100000)
 _ADC_OSR_64 = const(0b01000000)
 _ADC_OSR_128 = const(0b10000000)
 
-DAC_PATH_DISABLED = const(0b00)
-DAC_PATH_NORMAL = const(0b01)
-DAC_PATH_SWAPPED = const(0b10)
-DAC_PATH_MIXED = const(0b11)
-
 _REF_POWERUP_SLOW = const(0b000)
 _REF_POWERUP_40MS = const(0b001)
 _REF_POWERUP_80MS = const(0b010)
@@ -138,23 +127,6 @@ _REF_FORCE_POWERUP_120MS = const(0b111)
 _INPUT_POWERUP_3_1MS = const(0b01)
 _INPUT_POWERUP_6_4MS = const(0b10)
 _INPUT_POWERUP_1_6MS = const(0b11)
-
-_SOURCE_AVDD = const(0)
-_SOURCE_LDOIN = const(1)
-
-MICBIAS_MODE_1V25 = const(0b00)
-MICBIAS_MODE_1V7 = const(0b01)
-MICBIAS_MODE_2V5 = const(0b10)
-MICBIAS_MODE_SOURCE = const(0b11)
-
-INPUT_1 = const(0)
-INPUT_2 = const(1)
-INPUT_3 = const(2)
-
-INPUT_DISCONNECTED = const(0b00)
-INPUT_IMPEDANCE_10K = const(0b01)
-INPUT_IMPEDANCE_20K = const(0b01)
-INPUT_IMPEDANCE_40K = const(0b01)
 
 _UINT7_VOLUME_TABLE = (
     0,  #       0  Begin linear segment: round((-1.99 * dB) - 0.2)
@@ -320,6 +292,67 @@ _UINT6_VOLUME_TABLE = (
     -30.1,
 )
 
+AUDIO_INTERFACE_I2S = const(0b00)
+"""I2S format. Use with :attr:`TLV320AIC3204.audio_interface`."""
+
+AUDIO_INTERFACE_DSP = const(0b01)
+"""DSP format. Use with :attr:`TLV320AIC3204.audio_interface`."""
+
+AUDIO_INTERFACE_RJF = const(0b10)
+"""Right justified format. Use with :attr:`TLV320AIC3204.audio_interface`."""
+
+AUDIO_INTERFACE_LJF = const(0b11)
+"""Left justified format. Use with :attr:`TLV320AIC3204.audio_interface`."""
+
+DAC_PATH_DISABLED = const(0b00)
+"""DAC data path off."""
+
+DAC_PATH_NORMAL = const(0b01)
+"""Normal DAC data path (L->L or R->R)."""
+
+DAC_PATH_SWAPPED = const(0b10)
+"""Swapped DAC data path (R->L or L->R)."""
+
+DAC_PATH_MIXED = const(0b11)
+"""Mixed DAC data path (L+R)."""
+
+MICBIAS_MODE_1V25 = const(0b00)
+"""MICBIAS output voltage of 1.25V (when common mode is 0.9V). Use with :attr:`TLV320AIC3204.micbias_mode`."""
+
+MICBIAS_MODE_1V7 = const(0b01)
+"""MICBIAS output voltage of 1.7V (when common mode is 0.9V). Use with :attr:`TLV320AIC3204.micbias_mode`."""
+
+MICBIAS_MODE_2V5 = const(0b10)
+"""MICBIAS output voltage of 2.5V (when common mode is 0.9V). Use with :attr:`TLV320AIC3204.micbias_mode`."""
+
+MICBIAS_MODE_SOURCE = const(0b11)
+"""MICBIAS output voltage is sourced from power supply as dictated by :attr:`TLV320AIC3204.micbias_source`. Use with :attr:`TLV320AIC3204.micbias_mode`."""
+
+SOURCE_AVDD = const(0)
+"""Voltage is generated from AVDD. Use with :attr:`TLV320AIC3204.micbias_source`."""
+
+SOURCE_LDOIN = const(1)
+"""Voltage is generated from LDOIN. Use with :attr:`TLV320AIC3204.micbias_source`."""
+
+INPUT_1 = const(0)
+"""Use for routing either IN1L or IN1R to the MICPGA input with :attr:`TLV320AIC3204.connect_input`."""
+
+INPUT_2 = const(1)
+"""Use for routing either IN2L or IN2R to the MICPGA input with :attr:`TLV320AIC3204.connect_input`."""
+
+INPUT_3 = const(2)
+"""Use for routing either IN3L or IN3R to the MICPGA input with :attr:`TLV320AIC3204.connect_input`."""
+
+_DISCONNECTED = const(0b00)
+
+IMPEDANCE_10K = const(0b01)
+"""Connect an input using 10k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
+
+IMPEDANCE_20K = const(0b01)
+"""Connect an input using 20k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
+
+IMPEDANCE_40K = const(0b01)
+"""Connect an input using 40k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
 
 class RWBit(_RWBit):
     def __init__(  # noqa: PLR0913
@@ -448,9 +481,9 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._reference_powerup = _REF_POWERUP_40MS
         self._input_powerup = _INPUT_POWERUP_3_1MS
         self._analog_block_power_disabled = False
-        self._line_output_power_source = _SOURCE_LDOIN
+        self._line_output_power_source = SOURCE_LDOIN
         self._headphone_output_ldoin_3v3 = True
-        self._headphone_output_power_source = _SOURCE_LDOIN
+        self._headphone_output_power_source = SOURCE_LDOIN
 
         self.dac_volume = -63.5
         self.adc_volume = -12.0
@@ -503,10 +536,10 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._bit_depth = (value - 16) // 4
 
     dac_loopback: bool = RWBit(0, _REG_AUDIO_INTERFACE_3, 5)
-    """If set as `True`, DAC input is routed to ADC output."""
+    """If set as `True`, I2S DAC input is routed to ADC output."""
 
     adc_loopback: bool = RWBit(0, _REG_AUDIO_INTERFACE_3, 4)
-    """If set as `True`, ADC output is routed to DAC input."""
+    """If set as `True`, I2S ADC output is routed to DAC input."""
 
     left_dac_enabled: bool = RWBit(0, _REG_DAC_CHANNEL_1, 7)
     right_dac_enabled: bool = RWBit(0, _REG_DAC_CHANNEL_1, 6)
@@ -898,65 +931,65 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     def _update_floating(self) -> None:
         self._in1l_floating = (
-            self._in1l_to_left_input_pos != INPUT_DISCONNECTED
-            or self._in1l_to_right_input_neg != INPUT_DISCONNECTED
+            self._in1l_to_left_input_pos != _DISCONNECTED
+            or self._in1l_to_right_input_neg != _DISCONNECTED
         )
-        self._in1r_floating = self._in1r_to_right_input_pos != INPUT_DISCONNECTED
-        self._in2l_floating = self._in2l_to_left_input_pos != INPUT_DISCONNECTED
+        self._in1r_floating = self._in1r_to_right_input_pos != _DISCONNECTED
+        self._in2l_floating = self._in2l_to_left_input_pos != _DISCONNECTED
         self._in2r_floating = (
-            self._in2r_to_left_input_neg != INPUT_DISCONNECTED
-            or self._in2r_to_right_input_pos != INPUT_DISCONNECTED
+            self._in2r_to_left_input_neg != _DISCONNECTED
+            or self._in2r_to_right_input_pos != _DISCONNECTED
         )
         self._in3l_floating = (
-            self._in3l_to_left_input_pos != INPUT_DISCONNECTED
-            or self._in3l_to_right_input_neg != INPUT_DISCONNECTED
+            self._in3l_to_left_input_pos != _DISCONNECTED
+            or self._in3l_to_right_input_neg != _DISCONNECTED
         )
         self._in3r_floating = (
-            self._in3r_to_left_input_neg != INPUT_DISCONNECTED
-            or self._in3r_to_right_input_pos != INPUT_DISCONNECTED
+            self._in3r_to_left_input_neg != _DISCONNECTED
+            or self._in3r_to_right_input_pos != _DISCONNECTED
         )
 
     def connect_left_input(
-        self, input: int, impedance: int = INPUT_IMPEDANCE_10K, balanced: bool = False
+        self, input: int, impedance: int = IMPEDANCE_10K, balanced: bool = False
     ) -> None:
         if input == INPUT_1 and balanced:
             raise ValueError("Balanced IN1 input only supported on right channel")
 
-        self._in1l_to_left_input_pos = impedance if input == INPUT_1 else INPUT_DISCONNECTED
-        self._in2l_to_left_input_pos = impedance if input == INPUT_2 else INPUT_DISCONNECTED
-        self._in3l_to_left_input_pos = impedance if input == INPUT_3 else INPUT_DISCONNECTED
+        self._in1l_to_left_input_pos = impedance if input == INPUT_1 else _DISCONNECTED
+        self._in2l_to_left_input_pos = impedance if input == INPUT_2 else _DISCONNECTED
+        self._in3l_to_left_input_pos = impedance if input == INPUT_3 else _DISCONNECTED
 
-        self._cm_to_left_input_neg = impedance if not balanced else INPUT_DISCONNECTED
+        self._cm_to_left_input_neg = impedance if not balanced else _DISCONNECTED
         self._in2r_to_left_input_neg = (
-            impedance if input == INPUT_2 and balanced else INPUT_DISCONNECTED
+            impedance if input == INPUT_2 and balanced else _DISCONNECTED
         )
         self._in3r_to_left_input_neg = (
-            impedance if input == INPUT_3 and balanced else INPUT_DISCONNECTED
+            impedance if input == INPUT_3 and balanced else _DISCONNECTED
         )
 
         self._update_floating()
 
     def connect_right_input(
-        self, input: int, impedance: int = INPUT_IMPEDANCE_10K, balanced: bool = False
+        self, input: int, impedance: int = IMPEDANCE_10K, balanced: bool = False
     ) -> None:
         if input == INPUT_2 and balanced:
             raise ValueError("Balanced IN2 input only supported on left channel")
 
-        self._in1r_to_right_input_pos = impedance if input == INPUT_1 else INPUT_DISCONNECTED
-        self._in2r_to_right_input_pos = impedance if input == INPUT_2 else INPUT_DISCONNECTED
-        self._in3r_to_right_input_pos = impedance if input == INPUT_3 else INPUT_DISCONNECTED
+        self._in1r_to_right_input_pos = impedance if input == INPUT_1 else _DISCONNECTED
+        self._in2r_to_right_input_pos = impedance if input == INPUT_2 else _DISCONNECTED
+        self._in3r_to_right_input_pos = impedance if input == INPUT_3 else _DISCONNECTED
 
-        self._cm_to_right_input_neg = impedance if not balanced else INPUT_DISCONNECTED
+        self._cm_to_right_input_neg = impedance if not balanced else _DISCONNECTED
         self._in1l_to_right_input_neg = (
-            impedance if input == INPUT_1 and balanced else INPUT_DISCONNECTED
+            impedance if input == INPUT_1 and balanced else _DISCONNECTED
         )
         self._in3l_to_right_input_neg = (
-            impedance if input == INPUT_3 and balanced else INPUT_DISCONNECTED
+            impedance if input == INPUT_3 and balanced else _DISCONNECTED
         )
 
         self._update_floating()
 
-    def connect_input(self, input: int, impedance: int = INPUT_IMPEDANCE_10K) -> None:
+    def connect_input(self, input: int, impedance: int = IMPEDANCE_10K) -> None:
         self.connect_left_input(input, impedance)
         self.connect_right_input(input, impedance)
 
