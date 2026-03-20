@@ -24,8 +24,8 @@ i2s = pio_i2s.I2S(
 )
 
 # Connect IN1L to Left MICPGA and IN1R to Right MICPGA
-codec.connect_mic_input(relic_tlv320aic3204.MIC_INPUT_1, relic_tlv320aic3204.MIC_IMPEDANCE_20K)
-codec.mic_gain = 6.0  # dB
+codec.connect_input(relic_tlv320aic3204.INPUT_1, relic_tlv320aic3204.INPUT_IMPEDANCE_20K)
+codec.input_gain = 6.0  # dB
 
 
 # Setup ADC Input

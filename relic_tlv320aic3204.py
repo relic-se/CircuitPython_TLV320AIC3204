@@ -98,7 +98,7 @@ _REG_RIGHT_MICPGA_NEG = const(0x39)
 _REG_FLOATING_INPUT = const(0x3A)
 _REG_LEFT_MICPGA_GAIN = const(0x3B)
 _REG_RIGHT_MICPGA_GAIN = const(0x3C)
-_REG_MIC_POWERUP = const(0x47)
+_REG_INPUT_POWERUP = const(0x47)
 _REG_REF_POWERUP = const(0x7B)
 
 AUDIO_INTERFACE_I2S = const(0b00)
@@ -135,9 +135,9 @@ _REF_FORCE_POWERUP_40MS = const(0b101)
 _REF_FORCE_POWERUP_80MS = const(0b110)
 _REF_FORCE_POWERUP_120MS = const(0b111)
 
-_MIC_POWERUP_3_1MS = const(0b01)
-_MIC_POWERUP_6_4MS = const(0b10)
-_MIC_POWERUP_1_6MS = const(0b11)
+_INPUT_POWERUP_3_1MS = const(0b01)
+_INPUT_POWERUP_6_4MS = const(0b10)
+_INPUT_POWERUP_1_6MS = const(0b11)
 
 _SOURCE_AVDD = const(0)
 _SOURCE_LDOIN = const(1)
@@ -147,14 +147,14 @@ MICBIAS_MODE_1V7 = const(0b01)
 MICBIAS_MODE_2V5 = const(0b10)
 MICBIAS_MODE_SOURCE = const(0b11)
 
-MIC_INPUT_1 = const(0)
-MIC_INPUT_2 = const(1)
-MIC_INPUT_3 = const(2)
+INPUT_1 = const(0)
+INPUT_2 = const(1)
+INPUT_3 = const(2)
 
-MIC_DISCONNECTED = const(0b00)
-MIC_IMPEDANCE_10K = const(0b01)
-MIC_IMPEDANCE_20K = const(0b01)
-MIC_IMPEDANCE_40K = const(0b01)
+INPUT_DISCONNECTED = const(0b00)
+INPUT_IMPEDANCE_10K = const(0b01)
+INPUT_IMPEDANCE_20K = const(0b01)
+INPUT_IMPEDANCE_40K = const(0b01)
 
 _UINT7_VOLUME_TABLE = (
     0,  #       0  Begin linear segment: round((-1.99 * dB) - 0.2)
@@ -446,7 +446,7 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._power_isolation = True
         self._avdd_ldo_enabled = True
         self._reference_powerup = _REF_POWERUP_40MS
-        self._mic_powerup = _MIC_POWERUP_3_1MS
+        self._input_powerup = _INPUT_POWERUP_3_1MS
         self._analog_block_power_disabled = False
         self._line_output_power_source = _SOURCE_LDOIN
         self._headphone_output_ldoin_3v3 = True
@@ -476,7 +476,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     _reference_powerup: int = RWBits(1, 3, _REG_REF_POWERUP, 0)
 
-    _mic_powerup: int = RWBits(1, 6, _REG_MIC_POWERUP, 0)
+    _input_powerup: int = RWBits(1, 6, _REG_INPUT_POWERUP, 0)
 
     _line_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
 
@@ -873,21 +873,21 @@ class TLV320AIC3204:  # noqa: PLR0904
     micbias_mode: int = RWBits(1, 2, _REG_MICBIAS, 4)
     micbias_source: bool = RWBit(1, _REG_MICBIAS, 3)
 
-    _in1l_to_left_mic_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 6)
-    _in2l_to_left_mic_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 4)
-    _in3l_to_left_mic_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 2)
+    _in1l_to_left_input_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 6)
+    _in2l_to_left_input_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 4)
+    _in3l_to_left_input_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 2)
 
-    _cm_to_left_mic_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 6)
-    _in2r_to_left_mic_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 4)
-    _in3r_to_left_mic_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 2)
+    _cm_to_left_input_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 6)
+    _in2r_to_left_input_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 4)
+    _in3r_to_left_input_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 2)
 
-    _in1r_to_right_mic_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 6)
-    _in2r_to_right_mic_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 4)
-    _in3r_to_right_mic_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 2)
+    _in1r_to_right_input_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 6)
+    _in2r_to_right_input_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 4)
+    _in3r_to_right_input_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 2)
 
-    _cm_to_right_mic_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 6)
-    _in1l_to_right_mic_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 4)
-    _in3l_to_right_mic_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 2)
+    _cm_to_right_input_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 6)
+    _in1l_to_right_input_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 4)
+    _in3l_to_right_input_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 2)
 
     _in1l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 7)
     _in1r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 6)
@@ -898,104 +898,104 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     def _update_floating(self) -> None:
         self._in1l_floating = (
-            self._in1l_to_left_mic_pos != MIC_DISCONNECTED
-            or self._in1l_to_right_mic_neg != MIC_DISCONNECTED
+            self._in1l_to_left_input_pos != INPUT_DISCONNECTED
+            or self._in1l_to_right_input_neg != INPUT_DISCONNECTED
         )
-        self._in1r_floating = self._in1r_to_right_mic_pos != MIC_DISCONNECTED
-        self._in2l_floating = self._in2l_to_left_mic_pos != MIC_DISCONNECTED
+        self._in1r_floating = self._in1r_to_right_input_pos != INPUT_DISCONNECTED
+        self._in2l_floating = self._in2l_to_left_input_pos != INPUT_DISCONNECTED
         self._in2r_floating = (
-            self._in2r_to_left_mic_neg != MIC_DISCONNECTED
-            or self._in2r_to_right_mic_pos != MIC_DISCONNECTED
+            self._in2r_to_left_input_neg != INPUT_DISCONNECTED
+            or self._in2r_to_right_input_pos != INPUT_DISCONNECTED
         )
         self._in3l_floating = (
-            self._in3l_to_left_mic_pos != MIC_DISCONNECTED
-            or self._in3l_to_right_mic_neg != MIC_DISCONNECTED
+            self._in3l_to_left_input_pos != INPUT_DISCONNECTED
+            or self._in3l_to_right_input_neg != INPUT_DISCONNECTED
         )
         self._in3r_floating = (
-            self._in3r_to_left_mic_neg != MIC_DISCONNECTED
-            or self._in3r_to_right_mic_pos != MIC_DISCONNECTED
+            self._in3r_to_left_input_neg != INPUT_DISCONNECTED
+            or self._in3r_to_right_input_pos != INPUT_DISCONNECTED
         )
 
-    def connect_left_mic_input(
-        self, input: int, impedance: int = MIC_IMPEDANCE_10K, balanced: bool = False
+    def connect_left_input(
+        self, input: int, impedance: int = INPUT_IMPEDANCE_10K, balanced: bool = False
     ) -> None:
-        if input == MIC_INPUT_1 and balanced:
+        if input == INPUT_1 and balanced:
             raise ValueError("Balanced IN1 input only supported on right channel")
 
-        self._in1l_to_left_mic_pos = impedance if input == MIC_INPUT_1 else MIC_DISCONNECTED
-        self._in2l_to_left_mic_pos = impedance if input == MIC_INPUT_2 else MIC_DISCONNECTED
-        self._in3l_to_left_mic_pos = impedance if input == MIC_INPUT_3 else MIC_DISCONNECTED
+        self._in1l_to_left_input_pos = impedance if input == INPUT_1 else INPUT_DISCONNECTED
+        self._in2l_to_left_input_pos = impedance if input == INPUT_2 else INPUT_DISCONNECTED
+        self._in3l_to_left_input_pos = impedance if input == INPUT_3 else INPUT_DISCONNECTED
 
-        self._cm_to_left_mic_neg = impedance if not balanced else MIC_DISCONNECTED
-        self._in2r_to_left_mic_neg = (
-            impedance if input == MIC_INPUT_2 and balanced else MIC_DISCONNECTED
+        self._cm_to_left_input_neg = impedance if not balanced else INPUT_DISCONNECTED
+        self._in2r_to_left_input_neg = (
+            impedance if input == INPUT_2 and balanced else INPUT_DISCONNECTED
         )
-        self._in3r_to_left_mic_neg = (
-            impedance if input == MIC_INPUT_3 and balanced else MIC_DISCONNECTED
+        self._in3r_to_left_input_neg = (
+            impedance if input == INPUT_3 and balanced else INPUT_DISCONNECTED
         )
 
         self._update_floating()
 
-    def connect_right_mic_input(
-        self, input: int, impedance: int = MIC_IMPEDANCE_10K, balanced: bool = False
+    def connect_right_input(
+        self, input: int, impedance: int = INPUT_IMPEDANCE_10K, balanced: bool = False
     ) -> None:
-        if input == MIC_INPUT_2 and balanced:
+        if input == INPUT_2 and balanced:
             raise ValueError("Balanced IN2 input only supported on left channel")
 
-        self._in1r_to_right_mic_pos = impedance if input == MIC_INPUT_1 else MIC_DISCONNECTED
-        self._in2r_to_right_mic_pos = impedance if input == MIC_INPUT_2 else MIC_DISCONNECTED
-        self._in3r_to_right_mic_pos = impedance if input == MIC_INPUT_3 else MIC_DISCONNECTED
+        self._in1r_to_right_input_pos = impedance if input == INPUT_1 else INPUT_DISCONNECTED
+        self._in2r_to_right_input_pos = impedance if input == INPUT_2 else INPUT_DISCONNECTED
+        self._in3r_to_right_input_pos = impedance if input == INPUT_3 else INPUT_DISCONNECTED
 
-        self._cm_to_right_mic_neg = impedance if not balanced else MIC_DISCONNECTED
-        self._in1l_to_right_mic_neg = (
-            impedance if input == MIC_INPUT_1 and balanced else MIC_DISCONNECTED
+        self._cm_to_right_input_neg = impedance if not balanced else INPUT_DISCONNECTED
+        self._in1l_to_right_input_neg = (
+            impedance if input == INPUT_1 and balanced else INPUT_DISCONNECTED
         )
-        self._in3l_to_right_mic_neg = (
-            impedance if input == MIC_INPUT_3 and balanced else MIC_DISCONNECTED
+        self._in3l_to_right_input_neg = (
+            impedance if input == INPUT_3 and balanced else INPUT_DISCONNECTED
         )
 
         self._update_floating()
 
-    def connect_mic_input(self, input: int, impedance: int = MIC_IMPEDANCE_10K) -> None:
-        self.connect_left_mic_input(input, impedance)
-        self.connect_right_mic_input(input, impedance)
+    def connect_input(self, input: int, impedance: int = INPUT_IMPEDANCE_10K) -> None:
+        self.connect_left_input(input, impedance)
+        self.connect_right_input(input, impedance)
 
-    _left_mic_gain_disabled: bool = RWBit(1, _REG_LEFT_MICPGA_GAIN, 7)
-    _left_mic_gain: int = RWBits(1, 7, _REG_LEFT_MICPGA_GAIN, 0)
+    _left_input_gain_disabled: bool = RWBit(1, _REG_LEFT_MICPGA_GAIN, 7)
+    _left_input_gain: int = RWBits(1, 7, _REG_LEFT_MICPGA_GAIN, 0)
 
     @property
-    def left_mic_gain(self) -> float:
-        return min(max(self._left_mic_gain, 0), 95) / 2 if not self._left_mic_gain_disabled else 0.0
+    def left_input_gain(self) -> float:
+        return min(max(self._left_input_gain, 0), 95) / 2 if not self._left_input_gain_disabled else 0.0
 
-    @left_mic_gain.setter
-    def left_mic_gain(self, value: float) -> None:
+    @left_input_gain.setter
+    def left_input_gain(self, value: float) -> None:
         value = min(max(round(value * 2), 0), 95)
-        self._left_mic_gain_disabled = value <= 0
-        self._left_mic_gain = value
+        self._left_input_gain_disabled = value <= 0
+        self._left_input_gain = value
 
-    _right_mic_gain_disabled: bool = RWBit(1, _REG_RIGHT_MICPGA_GAIN, 7)
-    _right_mic_gain: int = RWBits(1, 7, _REG_RIGHT_MICPGA_GAIN, 0)
+    _right_input_gain_disabled: bool = RWBit(1, _REG_RIGHT_MICPGA_GAIN, 7)
+    _right_input_gain: int = RWBits(1, 7, _REG_RIGHT_MICPGA_GAIN, 0)
 
     @property
-    def right_mic_gain(self) -> float:
+    def right_input_gain(self) -> float:
         return (
-            min(max(self._right_mic_gain, 0), 95) / 2 if not self._right_mic_gain_disabled else 0.0
+            min(max(self._right_input_gain, 0), 95) / 2 if not self._right_input_gain_disabled else 0.0
         )
 
-    @right_mic_gain.setter
-    def right_mic_gain(self, value: float) -> None:
+    @right_input_gain.setter
+    def right_input_gain(self, value: float) -> None:
         value = min(max(round(value * 2), 0), 95)
-        self._right_mic_gain_disabled = value <= 0
-        self._right_mic_gain = value
+        self._right_input_gain_disabled = value <= 0
+        self._right_input_gain = value
 
     @property
-    def mic_gain(self) -> float:
-        return self.left_mic_gain
+    def input_gain(self) -> float:
+        return self.left_input_gain
 
-    @mic_gain.setter
-    def mic_gain(self, value: float) -> None:
-        self.left_mic_gain = value
-        self.right_mic_gain = value
+    @input_gain.setter
+    def input_gain(self, value: float) -> None:
+        self.left_input_gain = value
+        self.right_input_gain = value
 
     left_adc_enabled: bool = RWBit(0, _REG_ADC_CHANNEL_1, 7)
     right_adc_enabled: bool = RWBit(0, _REG_ADC_CHANNEL_1, 6)
