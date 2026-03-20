@@ -602,7 +602,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def dac_volume(self) -> float:
-        return self.left_dac_volume
+        return (self.left_dac_volume + self.right_dac_volume) / 2
 
     @dac_volume.setter
     def dac_volume(self, value: float) -> None:
@@ -831,7 +831,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def input1_to_headphone_output_volume(self) -> float:
-        return self.left_input1_to_left_headphone_output_volume
+        return (self.left_input1_to_left_headphone_output_volume + self.right_input1_to_right_headphone_output_volume) / 2
 
     @input1_to_headphone_output_volume.setter
     def input1_to_headphone_output_volume(self, value: float) -> None:
@@ -847,7 +847,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def input_passthrough_volume(self) -> float:
-        return self.left_input_passthrough_volume
+        return (self.left_input_passthrough_volume + self.right_input_passthrough_volume) / 2
 
     @input_passthrough_volume.setter
     def input_passthrough_volume(self, value: float) -> None:
@@ -866,15 +866,15 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_headphone_output_muted = value
         self.right_headphone_output_muted = value
 
-    left_headphone_output_gain: float = _PagedRWBits(1, 6, _REG_HPL_GAIN, 0, signed=True)
-    right_headphone_output_gain: float = _PagedRWBits(1, 6, _REG_HPR_GAIN, 0, signed=True)
+    left_headphone_output_gain: int = _PagedRWBits(1, 6, _REG_HPL_GAIN, 0, signed=True)
+    right_headphone_output_gain: int = _PagedRWBits(1, 6, _REG_HPR_GAIN, 0, signed=True)
 
     @property
-    def headphone_output_gain(self) -> float:
-        return self.left_headphone_output_gain
+    def headphone_output_gain(self) -> int:
+        return (self.left_headphone_output_gain + self.right_headphone_output_gain) / 2
 
     @headphone_output_gain.setter
-    def headphone_output_gain(self, value: float) -> None:
+    def headphone_output_gain(self, value: int) -> None:
         self.left_headphone_output_gain = value
         self.right_headphone_output_gain = value
 
@@ -890,15 +890,15 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_line_output_muted = value
         self.right_line_output_muted = value
 
-    left_line_output_gain: float = _PagedRWBits(1, 6, _REG_LOL_GAIN, 0, signed=True)
-    right_line_output_gain: float = _PagedRWBits(1, 6, _REG_LOR_GAIN, 0, signed=True)
+    left_line_output_gain: int = _PagedRWBits(1, 6, _REG_LOL_GAIN, 0, signed=True)
+    right_line_output_gain: int = _PagedRWBits(1, 6, _REG_LOR_GAIN, 0, signed=True)
 
     @property
-    def line_output_gain(self) -> float:
-        return self.left_line_output_gain
+    def line_output_gain(self) -> int:
+        return (self.left_line_output_gain + self.right_line_output_gain) // 2
 
     @line_output_gain.setter
-    def line_output_gain(self, value: float) -> None:
+    def line_output_gain(self, value: int) -> None:
         self.left_line_output_gain = value
         self.right_line_output_gain = value
 
@@ -1023,7 +1023,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def input_gain(self) -> float:
-        return self.left_input_gain
+        return (self.left_input_gain + self.right_input_gain) / 2
 
     @input_gain.setter
     def input_gain(self, value: float) -> None:
@@ -1076,7 +1076,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def adc_volume(self) -> float:
-        return self.left_adc_volume
+        return (self.left_adc_volume + self.right_adc_volume) / 2
 
     @adc_volume.setter
     def adc_volume(self, value: float) -> None:
