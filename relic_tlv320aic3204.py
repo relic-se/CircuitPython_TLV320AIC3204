@@ -27,8 +27,8 @@ import digitalio
 import microcontroller
 import pwmio
 from adafruit_bus_device.i2c_device import I2CDevice
-from adafruit_register.i2c_bit import RWBit as _RWBit
-from adafruit_register.i2c_bits import RWBits as _RWBits
+from adafruit_register.i2c_bit import RWBit
+from adafruit_register.i2c_bits import RWBits
 from busio import I2C
 from micropython import const
 
@@ -354,7 +354,7 @@ IMPEDANCE_20K = const(0b01)
 IMPEDANCE_40K = const(0b01)
 """Connect an input using 40k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
 
-class RWBit(_RWBit):
+class _PagedRWBit(RWBit):
     def __init__(  # noqa: PLR0913
         self,
         page: int,
@@ -377,7 +377,7 @@ class RWBit(_RWBit):
         super().__set__(obj, bool(value))
 
 
-class RWBits(_RWBits):
+class _PagedRWBits(RWBits):
     def __init__(  # noqa: PLR0913, PLR0917
         self,
         page: int,
@@ -402,7 +402,7 @@ class RWBits(_RWBits):
         super().__set__(obj, int(value))
 
 
-class CacheBits(_RWBits):
+class _CacheBits(RWBits):
     def __init__(  # noqa: PLR0913, PLR0917
         self,
         num_bits: int,
@@ -425,7 +425,7 @@ class CacheBits(_RWBits):
         super().__set__(obj, int(value))
 
 
-class VolumeBits(RWBits):
+class _PagedVolumeRWBits(_PagedRWBits):
     def __init__(self, page: int, register_address: int, table: tuple, mute: bool = False):
         super().__init__(page, 7, register_address, 0)
         self._table = table
@@ -452,7 +452,7 @@ class VolumeBits(RWBits):
 
 
 class TLV320AIC3204:  # noqa: PLR0904
-    _page: int = CacheBits(8, _REG_PAGE, 0)
+    _page: int = _CacheBits(8, _REG_PAGE, 0)
 
     def __init__(
         self,
@@ -472,7 +472,7 @@ class TLV320AIC3204:  # noqa: PLR0904
             self._reset.direction = digitalio.Direction.OUTPUT
             self._reset.value = True
         else:
-            self._reset = RWBit(0, _REG_SOFTWARE_RESET, 0)
+            self._reset = _PagedRWBit(0, _REG_SOFTWARE_RESET, 0)
         self.reset()
 
         # Power Configuration (See Figure 21)
@@ -501,25 +501,25 @@ class TLV320AIC3204:  # noqa: PLR0904
             self._reset = True
         time.sleep(0.01)
 
-    _power_isolation: bool = RWBit(1, _REG_POWER_CONFIG, 3)
+    _power_isolation: bool = _PagedRWBit(1, _REG_POWER_CONFIG, 3)
 
-    _analog_block_power_disabled: bool = RWBit(1, _REG_LDO_CONTROL, 3)
+    _analog_block_power_disabled: bool = _PagedRWBit(1, _REG_LDO_CONTROL, 3)
 
-    _avdd_ldo_enabled: bool = RWBit(1, _REG_LDO_CONTROL, 0)
+    _avdd_ldo_enabled: bool = _PagedRWBit(1, _REG_LDO_CONTROL, 0)
 
-    _reference_powerup: int = RWBits(1, 3, _REG_REF_POWERUP, 0)
+    _reference_powerup: int = _PagedRWBits(1, 3, _REG_REF_POWERUP, 0)
 
-    _input_powerup: int = RWBits(1, 6, _REG_INPUT_POWERUP, 0)
+    _input_powerup: int = _PagedRWBits(1, 6, _REG_INPUT_POWERUP, 0)
 
-    _line_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
+    _line_output_power_source: bool = _PagedRWBit(1, _REG_COMMON_MODE, 3)
 
-    _headphone_output_ldoin_3v3: bool = RWBit(1, _REG_COMMON_MODE, 0)
+    _headphone_output_ldoin_3v3: bool = _PagedRWBit(1, _REG_COMMON_MODE, 0)
 
-    _headphone_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
+    _headphone_output_power_source: bool = _PagedRWBit(1, _REG_COMMON_MODE, 3)
 
-    audio_interface: int = RWBits(0, 2, _REG_AUDIO_INTERFACE_1, 6)
+    audio_interface: int = _PagedRWBits(0, 2, _REG_AUDIO_INTERFACE_1, 6)
 
-    _bit_depth: int = RWBits(0, 2, _REG_AUDIO_INTERFACE_1, 4)
+    _bit_depth: int = _PagedRWBits(0, 2, _REG_AUDIO_INTERFACE_1, 4)
 
     @property
     def bit_depth(self) -> int:
@@ -535,14 +535,14 @@ class TLV320AIC3204:  # noqa: PLR0904
             raise ValueError("CircuitPython I2S only supports 16-bit stereo")
         self._bit_depth = (value - 16) // 4
 
-    dac_loopback: bool = RWBit(0, _REG_AUDIO_INTERFACE_3, 5)
+    dac_loopback: bool = _PagedRWBit(0, _REG_AUDIO_INTERFACE_3, 5)
     """If set as `True`, I2S DAC input is routed to ADC output."""
 
-    adc_loopback: bool = RWBit(0, _REG_AUDIO_INTERFACE_3, 4)
+    adc_loopback: bool = _PagedRWBit(0, _REG_AUDIO_INTERFACE_3, 4)
     """If set as `True`, I2S ADC output is routed to DAC input."""
 
-    left_dac_enabled: bool = RWBit(0, _REG_DAC_CHANNEL_1, 7)
-    right_dac_enabled: bool = RWBit(0, _REG_DAC_CHANNEL_1, 6)
+    left_dac_enabled: bool = _PagedRWBit(0, _REG_DAC_CHANNEL_1, 7)
+    right_dac_enabled: bool = _PagedRWBit(0, _REG_DAC_CHANNEL_1, 6)
 
     @property
     def dac_enabled(self) -> bool:
@@ -553,11 +553,11 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_dac_enabled = value
         self.right_dac_enabled = value
 
-    dac_processing_block: int = RWBits(0, 5, _REG_DAC_PROCESSING_BLOCK, 0)
-    adc_processing_block: int = RWBits(0, 5, _REG_ADC_PROCESSING_BLOCK, 0)
+    dac_processing_block: int = _PagedRWBits(0, 5, _REG_DAC_PROCESSING_BLOCK, 0)
+    adc_processing_block: int = _PagedRWBits(0, 5, _REG_ADC_PROCESSING_BLOCK, 0)
 
-    left_dac_path: int = RWBits(0, 2, _REG_DAC_CHANNEL_1, 4)
-    right_dac_path: int = RWBits(0, 2, _REG_DAC_CHANNEL_1, 2)
+    left_dac_path: int = _PagedRWBits(0, 2, _REG_DAC_CHANNEL_1, 4)
+    right_dac_path: int = _PagedRWBits(0, 2, _REG_DAC_CHANNEL_1, 2)
 
     @property
     def dac_path(self) -> int:
@@ -568,8 +568,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_dac_path = value
         self.right_dac_path = value
 
-    left_dac_muted: bool = RWBit(0, _REG_DAC_CHANNEL_2, 3)
-    right_dac_muted: bool = RWBit(0, _REG_DAC_CHANNEL_2, 2)
+    left_dac_muted: bool = _PagedRWBit(0, _REG_DAC_CHANNEL_2, 3)
+    right_dac_muted: bool = _PagedRWBit(0, _REG_DAC_CHANNEL_2, 2)
 
     @property
     def dac_muted(self) -> bool:
@@ -580,7 +580,7 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_dac_muted = value
         self.right_dac_muted = value
 
-    _left_dac_volume: int = RWBits(0, 8, _REG_LEFT_DAC_VOLUME, 0, signed=True)
+    _left_dac_volume: int = _PagedRWBits(0, 8, _REG_LEFT_DAC_VOLUME, 0, signed=True)
 
     @property
     def left_dac_volume(self) -> float:
@@ -590,7 +590,7 @@ class TLV320AIC3204:  # noqa: PLR0904
     def left_dac_volume(self, value: float) -> None:
         self._left_dac_volume = min(max(round(value * 2), -127), 48)
 
-    _right_dac_volume: int = RWBits(0, 8, _REG_RIGHT_DAC_VOLUME, 0, signed=True)
+    _right_dac_volume: int = _PagedRWBits(0, 8, _REG_RIGHT_DAC_VOLUME, 0, signed=True)
 
     @property
     def right_dac_volume(self) -> float:
@@ -609,13 +609,13 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_dac_volume = value
         self.right_dac_volume = value
 
-    _pll_enabled: bool = RWBit(0, _REG_CLOCK_2, 7)
-    _pll_p: int = RWBits(0, 3, _REG_CLOCK_2, 4)
-    _pll_r: int = RWBits(0, 3, _REG_CLOCK_2, 0)
-    _pll_j: int = RWBits(0, 6, _REG_CLOCK_3, 0)
+    _pll_enabled: bool = _PagedRWBit(0, _REG_CLOCK_2, 7)
+    _pll_p: int = _PagedRWBits(0, 3, _REG_CLOCK_2, 4)
+    _pll_r: int = _PagedRWBits(0, 3, _REG_CLOCK_2, 0)
+    _pll_j: int = _PagedRWBits(0, 6, _REG_CLOCK_3, 0)
 
-    _pll_d_msb: int = RWBits(0, 6, _REG_CLOCK_4, 0)
-    _pll_d_lsb: int = RWBits(0, 8, _REG_CLOCK_5, 0)
+    _pll_d_msb: int = _PagedRWBits(0, 6, _REG_CLOCK_4, 0)
+    _pll_d_lsb: int = _PagedRWBits(0, 8, _REG_CLOCK_5, 0)
 
     @property
     def _pll_d(self) -> int:
@@ -626,20 +626,20 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._pll_d_lsb = value & 0xFF
         self._pll_d_msb = (value >> 8) & 0x3F
 
-    _pll_clkin: int = RWBits(0, 2, _REG_CLOCK_1, 2)
+    _pll_clkin: int = _PagedRWBits(0, 2, _REG_CLOCK_1, 2)
 
-    _codec_clkin: int = RWBits(0, 2, _REG_CLOCK_1, 0)
+    _codec_clkin: int = _PagedRWBits(0, 2, _REG_CLOCK_1, 0)
 
-    _ndac_enabled: bool = RWBit(0, _REG_NDAC, 7)
+    _ndac_enabled: bool = _PagedRWBit(0, _REG_NDAC, 7)
 
-    _ndac: int = RWBits(0, 7, _REG_NDAC, 0)
+    _ndac: int = _PagedRWBits(0, 7, _REG_NDAC, 0)
 
-    _mdac_enabled: bool = RWBit(0, _REG_MDAC, 7)
+    _mdac_enabled: bool = _PagedRWBit(0, _REG_MDAC, 7)
 
-    _mdac: int = RWBits(0, 7, _REG_MDAC, 0)
+    _mdac: int = _PagedRWBits(0, 7, _REG_MDAC, 0)
 
-    _dac_osr_lsb: int = RWBits(0, 8, _REG_DAC_OSR_LSB, 0)
-    _dac_osr_msb: int = RWBits(0, 2, _REG_DAC_OSR_MSB, 0)
+    _dac_osr_lsb: int = _PagedRWBits(0, 8, _REG_DAC_OSR_LSB, 0)
+    _dac_osr_msb: int = _PagedRWBits(0, 2, _REG_DAC_OSR_MSB, 0)
 
     @property
     def _dac_osr(self) -> int:
@@ -650,7 +650,7 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._dac_osr_lsb = value & 0xFF
         self._dac_osr_msb = (value >> 8) & 0x03
 
-    _adc_osr: int = RWBits(0, 8, _REG_ADC_OSR, 0)
+    _adc_osr: int = _PagedRWBits(0, 8, _REG_ADC_OSR, 0)
 
     @property
     def sample_rate(self) -> int:
@@ -719,8 +719,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._dac_osr = dosr
         self._adc_osr = aosr
 
-    left_headphone_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 5)
-    right_headphone_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 4)
+    left_headphone_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 5)
+    right_headphone_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 4)
 
     @property
     def headphone_output_enabled(self) -> bool:
@@ -731,8 +731,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_headphone_output_enabled = value
         self.right_headphone_output_enabled = value
 
-    left_line_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 3)
-    right_line_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 2)
+    left_line_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 3)
+    right_line_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 2)
 
     @property
     def line_output_enabled(self) -> bool:
@@ -743,8 +743,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_line_output_enabled = value
         self.right_line_output_enabled = value
 
-    left_dac_to_left_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 3)
-    right_dac_to_right_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 3)
+    left_dac_to_left_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 3)
+    right_dac_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 3)
 
     @property
     def dac_to_headphone_output(self) -> bool:
@@ -755,8 +755,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_dac_to_left_headphone_output = value
         self.right_dac_to_right_headphone_output = value
 
-    left_dac_to_left_line_output: bool = RWBit(1, _REG_LOL_ROUTING, 3)
-    right_dac_to_right_line_output: bool = RWBit(1, _REG_LOR_ROUTING, 3)
+    left_dac_to_left_line_output: bool = _PagedRWBit(1, _REG_LOL_ROUTING, 3)
+    right_dac_to_right_line_output: bool = _PagedRWBit(1, _REG_LOR_ROUTING, 3)
 
     @property
     def dac_to_line_output(self) -> bool:
@@ -767,8 +767,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_dac_to_left_line_output = value
         self.right_dac_to_right_line_output = value
 
-    left_input_passthrough_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 1)
-    right_input_passthrough_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 0)
+    left_input_passthrough_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 1)
+    right_input_passthrough_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 0)
 
     @property
     def input_passthrough_enabled(self) -> bool:
@@ -779,8 +779,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_input_passthrough_enabled = value
         self.right_input_passthrough_enabled = value
 
-    left_input_to_left_line_output: bool = RWBit(1, _REG_LOL_ROUTING, 1)
-    right_input_to_right_line_output: bool = RWBit(1, _REG_LOR_ROUTING, 1)
+    left_input_to_left_line_output: bool = _PagedRWBit(1, _REG_LOL_ROUTING, 1)
+    right_input_to_right_line_output: bool = _PagedRWBit(1, _REG_LOR_ROUTING, 1)
 
     @property
     def input_to_line_output(self) -> bool:
@@ -793,8 +793,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_input_to_left_line_output = value
         self.right_input_to_right_line_output = value
 
-    left_input_to_left_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 1)
-    right_input_to_right_headphone_output: bool = RWBit(1, _REG_HPR_ROUTING, 1)
+    left_input_to_left_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 1)
+    right_input_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPR_ROUTING, 1)
 
     @property
     def input_to_headphone_output(self) -> bool:
@@ -808,8 +808,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_input_to_left_headphone_output = value
         self.right_input_to_right_headphone_output = value
 
-    left_input1_to_left_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 2)
-    right_input1_to_right_headphone_output: bool = RWBit(1, _REG_HPR_ROUTING, 2)
+    left_input1_to_left_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 2)
+    right_input1_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPR_ROUTING, 2)
 
     @property
     def input1_to_headphone_output(self) -> bool:
@@ -822,10 +822,10 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_input1_to_left_headphone_output = value
         self.right_input1_to_right_headphone_output = value
 
-    left_input1_to_left_headphone_output_volume: float = VolumeBits(
+    left_input1_to_left_headphone_output_volume: float = _PagedVolumeRWBits(
         1, _REG_IN1L_TO_HPL_VOLUME, _UINT7_VOLUME_TABLE, True
     )
-    right_input1_to_right_headphone_output_volume: float = VolumeBits(
+    right_input1_to_right_headphone_output_volume: float = _PagedVolumeRWBits(
         1, _REG_IN1R_TO_HPR_VOLUME, _UINT7_VOLUME_TABLE, True
     )
 
@@ -838,10 +838,10 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_input1_to_left_headphone_output_volume = value
         self.right_input1_to_right_headphone_output_volume = value
 
-    left_input_passthrough_volume: float = VolumeBits(
+    left_input_passthrough_volume: float = _PagedVolumeRWBits(
         1, _REG_MIXER_LEFT_VOLUME, _UINT6_VOLUME_TABLE, True
     )
-    right_input_passthrough_volume: float = VolumeBits(
+    right_input_passthrough_volume: float = _PagedVolumeRWBits(
         1, _REG_MIXER_RIGHT_VOLUME, _UINT6_VOLUME_TABLE, True
     )
 
@@ -854,8 +854,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_input_passthrough_volume = value
         self.right_input_passthrough_volume = value
 
-    left_headphone_output_muted: bool = RWBit(1, _REG_HPL_GAIN, 6)
-    right_headphone_output_muted: bool = RWBit(1, _REG_HPR_GAIN, 6)
+    left_headphone_output_muted: bool = _PagedRWBit(1, _REG_HPL_GAIN, 6)
+    right_headphone_output_muted: bool = _PagedRWBit(1, _REG_HPR_GAIN, 6)
 
     @property
     def headphone_output_muted(self) -> bool:
@@ -866,8 +866,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_headphone_output_muted = value
         self.right_headphone_output_muted = value
 
-    left_headphone_output_gain: float = RWBits(1, 6, _REG_HPL_GAIN, 0, signed=True)
-    right_headphone_output_gain: float = RWBits(1, 6, _REG_HPR_GAIN, 0, signed=True)
+    left_headphone_output_gain: float = _PagedRWBits(1, 6, _REG_HPL_GAIN, 0, signed=True)
+    right_headphone_output_gain: float = _PagedRWBits(1, 6, _REG_HPR_GAIN, 0, signed=True)
 
     @property
     def headphone_output_gain(self) -> float:
@@ -878,8 +878,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_headphone_output_gain = value
         self.right_headphone_output_gain = value
 
-    left_line_output_muted: bool = RWBit(1, _REG_LOL_GAIN, 6)
-    right_line_output_muted: bool = RWBit(1, _REG_LOR_GAIN, 6)
+    left_line_output_muted: bool = _PagedRWBit(1, _REG_LOL_GAIN, 6)
+    right_line_output_muted: bool = _PagedRWBit(1, _REG_LOR_GAIN, 6)
 
     @property
     def line_output_muted(self) -> bool:
@@ -890,8 +890,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_line_output_muted = value
         self.right_line_output_muted = value
 
-    left_line_output_gain: float = RWBits(1, 6, _REG_LOL_GAIN, 0, signed=True)
-    right_line_output_gain: float = RWBits(1, 6, _REG_LOR_GAIN, 0, signed=True)
+    left_line_output_gain: float = _PagedRWBits(1, 6, _REG_LOL_GAIN, 0, signed=True)
+    right_line_output_gain: float = _PagedRWBits(1, 6, _REG_LOR_GAIN, 0, signed=True)
 
     @property
     def line_output_gain(self) -> float:
@@ -902,32 +902,32 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_line_output_gain = value
         self.right_line_output_gain = value
 
-    micbias_enabled: bool = RWBit(1, _REG_MICBIAS, 6)
-    micbias_mode: int = RWBits(1, 2, _REG_MICBIAS, 4)
-    micbias_source: bool = RWBit(1, _REG_MICBIAS, 3)
+    micbias_enabled: bool = _PagedRWBit(1, _REG_MICBIAS, 6)
+    micbias_mode: int = _PagedRWBits(1, 2, _REG_MICBIAS, 4)
+    micbias_source: bool = _PagedRWBit(1, _REG_MICBIAS, 3)
 
-    _in1l_to_left_input_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 6)
-    _in2l_to_left_input_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 4)
-    _in3l_to_left_input_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 2)
+    _in1l_to_left_input_pos: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_POS, 6)
+    _in2l_to_left_input_pos: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_POS, 4)
+    _in3l_to_left_input_pos: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_POS, 2)
 
-    _cm_to_left_input_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 6)
-    _in2r_to_left_input_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 4)
-    _in3r_to_left_input_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 2)
+    _cm_to_left_input_neg: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_NEG, 6)
+    _in2r_to_left_input_neg: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_NEG, 4)
+    _in3r_to_left_input_neg: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_NEG, 2)
 
-    _in1r_to_right_input_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 6)
-    _in2r_to_right_input_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 4)
-    _in3r_to_right_input_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 2)
+    _in1r_to_right_input_pos: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_POS, 6)
+    _in2r_to_right_input_pos: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_POS, 4)
+    _in3r_to_right_input_pos: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_POS, 2)
 
-    _cm_to_right_input_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 6)
-    _in1l_to_right_input_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 4)
-    _in3l_to_right_input_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 2)
+    _cm_to_right_input_neg: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 6)
+    _in1l_to_right_input_neg: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 4)
+    _in3l_to_right_input_neg: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 2)
 
-    _in1l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 7)
-    _in1r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 6)
-    _in2l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 5)
-    _in2r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 4)
-    _in3l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 3)
-    _in3r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 2)
+    _in1l_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 7)
+    _in1r_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 6)
+    _in2l_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 5)
+    _in2r_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 4)
+    _in3l_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 3)
+    _in3r_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 2)
 
     def _update_floating(self) -> None:
         self._in1l_floating = (
@@ -993,8 +993,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.connect_left_input(input, impedance)
         self.connect_right_input(input, impedance)
 
-    _left_input_gain_disabled: bool = RWBit(1, _REG_LEFT_MICPGA_GAIN, 7)
-    _left_input_gain: int = RWBits(1, 7, _REG_LEFT_MICPGA_GAIN, 0)
+    _left_input_gain_disabled: bool = _PagedRWBit(1, _REG_LEFT_MICPGA_GAIN, 7)
+    _left_input_gain: int = _PagedRWBits(1, 7, _REG_LEFT_MICPGA_GAIN, 0)
 
     @property
     def left_input_gain(self) -> float:
@@ -1006,8 +1006,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._left_input_gain_disabled = value <= 0
         self._left_input_gain = value
 
-    _right_input_gain_disabled: bool = RWBit(1, _REG_RIGHT_MICPGA_GAIN, 7)
-    _right_input_gain: int = RWBits(1, 7, _REG_RIGHT_MICPGA_GAIN, 0)
+    _right_input_gain_disabled: bool = _PagedRWBit(1, _REG_RIGHT_MICPGA_GAIN, 7)
+    _right_input_gain: int = _PagedRWBits(1, 7, _REG_RIGHT_MICPGA_GAIN, 0)
 
     @property
     def right_input_gain(self) -> float:
@@ -1030,8 +1030,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_input_gain = value
         self.right_input_gain = value
 
-    left_adc_enabled: bool = RWBit(0, _REG_ADC_CHANNEL_1, 7)
-    right_adc_enabled: bool = RWBit(0, _REG_ADC_CHANNEL_1, 6)
+    left_adc_enabled: bool = _PagedRWBit(0, _REG_ADC_CHANNEL_1, 7)
+    right_adc_enabled: bool = _PagedRWBit(0, _REG_ADC_CHANNEL_1, 6)
 
     @property
     def adc_enabled(self) -> bool:
@@ -1042,8 +1042,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_adc_enabled = value
         self.right_adc_enabled = value
 
-    left_adc_muted: bool = RWBit(0, _REG_ADC_CHANNEL_2, 7)
-    right_adc_muted: bool = RWBit(0, _REG_ADC_CHANNEL_2, 3)
+    left_adc_muted: bool = _PagedRWBit(0, _REG_ADC_CHANNEL_2, 7)
+    right_adc_muted: bool = _PagedRWBit(0, _REG_ADC_CHANNEL_2, 3)
 
     @property
     def adc_muted(self) -> bool:
@@ -1054,7 +1054,7 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_adc_muted = value
         self.right_adc_muted = value
 
-    _left_adc_volume: int = RWBits(0, 7, _REG_LEFT_ADC_VOLUME, 0, signed=True)
+    _left_adc_volume: int = _PagedRWBits(0, 7, _REG_LEFT_ADC_VOLUME, 0, signed=True)
 
     @property
     def left_adc_volume(self) -> float:
@@ -1064,7 +1064,7 @@ class TLV320AIC3204:  # noqa: PLR0904
     def left_adc_volume(self, value: float) -> None:
         self._left_adc_volume = min(max(round(value * 2), -24), 40)
 
-    _right_adc_volume: int = RWBits(0, 7, _REG_RIGHT_ADC_VOLUME, 0, signed=True)
+    _right_adc_volume: int = _PagedRWBits(0, 7, _REG_RIGHT_ADC_VOLUME, 0, signed=True)
 
     @property
     def right_adc_volume(self) -> float:
