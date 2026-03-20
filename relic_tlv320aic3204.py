@@ -126,21 +126,21 @@ DAC_PATH_NORMAL = const(0b01)
 DAC_PATH_SWAPPED = const(0b10)
 DAC_PATH_MIXED = const(0b11)
 
-REF_POWERUP_SLOW = const(0b000)
-REF_POWERUP_40MS = const(0b001)
-REF_POWERUP_80MS = const(0b010)
-REF_POWERUP_120MS = const(0b011)
-REF_FORCE_POWERUP_SLOW = const(0b100)
-REF_FORCE_POWERUP_40MS = const(0b101)
-REF_FORCE_POWERUP_80MS = const(0b110)
-REF_FORCE_POWERUP_120MS = const(0b111)
+_REF_POWERUP_SLOW = const(0b000)
+_REF_POWERUP_40MS = const(0b001)
+_REF_POWERUP_80MS = const(0b010)
+_REF_POWERUP_120MS = const(0b011)
+_REF_FORCE_POWERUP_SLOW = const(0b100)
+_REF_FORCE_POWERUP_40MS = const(0b101)
+_REF_FORCE_POWERUP_80MS = const(0b110)
+_REF_FORCE_POWERUP_120MS = const(0b111)
 
-MIC_POWERUP_3_1MS = const(0b01)
-MIC_POWERUP_6_4MS = const(0b10)
-MIC_POWERUP_1_6MS = const(0b11)
+_MIC_POWERUP_3_1MS = const(0b01)
+_MIC_POWERUP_6_4MS = const(0b10)
+_MIC_POWERUP_1_6MS = const(0b11)
 
-SOURCE_AVDD = const(0)
-SOURCE_LDOIN = const(1)
+_SOURCE_AVDD = const(0)
+_SOURCE_LDOIN = const(1)
 
 MICBIAS_MODE_1V25 = const(0b00)
 MICBIAS_MODE_1V7 = const(0b01)
@@ -336,11 +336,11 @@ class RWBit(_RWBit):
     def __get__(
         self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
     ) -> bool:
-        obj.page = self._page
+        obj._page = self._page
         return super().__get__(obj, objtype)
 
     def __set__(self, obj: I2CDeviceDriver, value: bool):
-        obj.page = self._page
+        obj._page = self._page
         super().__set__(obj, bool(value))
 
 
@@ -361,11 +361,11 @@ class RWBits(_RWBits):
     def __get__(
         self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
     ) -> int:
-        obj.page = self._page
+        obj._page = self._page
         return super().__get__(obj, objtype)
 
     def __set__(self, obj: I2CDeviceDriver, value: int):
-        obj.page = self._page
+        obj._page = self._page
         super().__set__(obj, int(value))
 
 
@@ -419,7 +419,7 @@ class VolumeBits(RWBits):
 
 
 class TLV320AIC3204:  # noqa: PLR0904
-    page: int = CacheBits(8, _REG_PAGE, 0)
+    _page: int = CacheBits(8, _REG_PAGE, 0)
 
     def __init__(
         self,
@@ -428,7 +428,6 @@ class TLV320AIC3204:  # noqa: PLR0904
         rst: microcontroller.Pin = None,
         address: int = _DEFAULT_I2C_ADDR,
     ) -> None:
-        self._page = None
         self.i2c_device: I2CDevice = I2CDevice(i2c, address)
 
         self._mclk = (
@@ -444,14 +443,14 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.reset()
 
         # Power Configuration (See Figure 21)
-        self.power_isolation = True
-        self.avdd_ldo_enabled = True
-        self.reference_powerup = REF_POWERUP_40MS
-        self.mic_powerup = MIC_POWERUP_3_1MS
-        self.analog_block_power_disabled = False
-        self.line_output_power_source = SOURCE_LDOIN
-        self.headphone_output_ldoin_3v3 = True
-        self.headphone_output_power_source = SOURCE_LDOIN
+        self._power_isolation = True
+        self._avdd_ldo_enabled = True
+        self._reference_powerup = _REF_POWERUP_40MS
+        self._mic_powerup = _MIC_POWERUP_3_1MS
+        self._analog_block_power_disabled = False
+        self._line_output_power_source = _SOURCE_LDOIN
+        self._headphone_output_ldoin_3v3 = True
+        self._headphone_output_power_source = _SOURCE_LDOIN
 
         self.dac_volume = -63.5
         self.adc_volume = -12.0
@@ -469,23 +468,23 @@ class TLV320AIC3204:  # noqa: PLR0904
             self._reset = True
         time.sleep(0.01)
 
-    power_isolation: bool = RWBit(1, _REG_POWER_CONFIG, 3)
+    _power_isolation: bool = RWBit(1, _REG_POWER_CONFIG, 3)
 
-    analog_block_power_disabled: bool = RWBit(1, _REG_LDO_CONTROL, 3)
+    _analog_block_power_disabled: bool = RWBit(1, _REG_LDO_CONTROL, 3)
 
-    avdd_ldo_enabled: bool = RWBit(1, _REG_LDO_CONTROL, 0)
+    _avdd_ldo_enabled: bool = RWBit(1, _REG_LDO_CONTROL, 0)
 
-    reference_powerup: int = RWBits(1, 3, _REG_REF_POWERUP, 0)
+    _reference_powerup: int = RWBits(1, 3, _REG_REF_POWERUP, 0)
 
-    mic_powerup: int = RWBits(1, 6, _REG_MIC_POWERUP, 0)
+    _mic_powerup: int = RWBits(1, 6, _REG_MIC_POWERUP, 0)
+
+    _line_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
+
+    _headphone_output_ldoin_3v3: bool = RWBit(1, _REG_COMMON_MODE, 0)
+
+    _headphone_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
 
     audio_interface: int = RWBits(0, 2, _REG_AUDIO_INTERFACE_1, 6)
-
-    line_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
-
-    headphone_output_ldoin_3v3: bool = RWBit(1, _REG_COMMON_MODE, 0)
-
-    headphone_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
 
     _bit_depth: int = RWBits(0, 2, _REG_AUDIO_INTERFACE_1, 4)
 
