@@ -1016,10 +1016,25 @@ class TLV320AIC3204:  # noqa: PLR0904
     # Headphone Output Routing
 
     left_dac_to_left_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 3)
+    """Whether or not to route the output of the left channel of the DAC to the left channel of the
+    headphone amplifier.
+
+    :default: `False`
+    """
+
     right_dac_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 3)
+    """Whether or not to route the output of the right channel of the DAC to the right channel of
+    the headphone amplifier.
+
+    :default: `False`
+    """
 
     @property
     def dac_to_headphone_output(self) -> bool:
+        """Whether or not to route the output of the DAC to the headphone amplifier.
+
+        :default: `False`
+        """
         return self.left_dac_to_left_headphone_output or self.right_dac_to_right_headphone_output
 
     @dac_to_headphone_output.setter
@@ -1028,10 +1043,29 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.right_dac_to_right_headphone_output = value
 
     left_input_to_left_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 1)
+    """Whether or not to route the output of the left channel of the input passthrough to the left
+    channel of the headphone amplifier. See :attr:`TLV320AIC3204.left_input_passthrough_enabled`
+    and :attr:`TLV320AIC3204.left_input_passthrough_volume` to control the passthrough mixer.
+
+    :default: `False`
+    """
+
     right_input_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPR_ROUTING, 1)
+    """Whether or not to route the output of the right channel of the input passthrough to the right
+    channel of the headphone amplifier. See :attr:`TLV320AIC3204.right_input_passthrough_enabled`
+    and :attr:`TLV320AIC3204.right_input_passthrough_volume` to control the passthrough mixer.
+
+    :default: `False`
+    """
 
     @property
     def input_to_headphone_output(self) -> bool:
+        """Whether or not to route the output of the input passthrough to the headphone amplifier.
+        See :attr:`TLV320AIC3204.input_passthrough_enabled` and
+        :attr:`TLV320AIC3204.input_passthrough_volume` to control the passthrough mixer.
+
+        :default: `False`
+        """
         return (
             self.left_input_to_left_headphone_output or self.right_input_to_right_headphone_output
         )
@@ -1042,10 +1076,31 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.right_input_to_right_headphone_output = value
 
     left_input1_to_left_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 2)
+    """Whether or not to route the output of the direct passthrough of the left channel of input 1
+    (IN1_L) to the left channel of the headphone amplifier. See
+    :attr:`TLV320AIC3204.left_input1_to_left_headphone_output_volume` to control the volume of this
+    passthrough.
+
+    :default: `False`
+    """
+
     right_input1_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPR_ROUTING, 2)
+    """Whether or not to route the output of the direct passthrough of the right channel of input 1
+    (IN1_R) to the right channel of the headphone amplifier. See
+    :attr:`TLV320AIC3204.right_input1_to_left_headphone_output_volume` to control the volume of this
+    passthrough.
+
+    :default: `False`
+    """
 
     @property
     def input1_to_headphone_output(self) -> bool:
+        """Whether or not to route the output of the direct passthrough of input 1 (IN1_L and IN1_R)
+        to the headphone amplifier. See :attr:`TLV320AIC3204.input1_to_headphone_output_volume` to
+        control the volume of this passthrough.
+
+        :default: `False`
+        """
         return (
             self.left_input1_to_left_headphone_output or self.right_input1_to_right_headphone_output
         )
@@ -1058,12 +1113,33 @@ class TLV320AIC3204:  # noqa: PLR0904
     left_input1_to_left_headphone_output_volume: float = _PagedVolumeRWBits(
         1, _REG_IN1L_TO_HPL_VOLUME, _UINT7_VOLUME_TABLE, True
     )
+    """The volume of the direct passthrough of the left channel of input 1 (IN1_L) to the left
+    channel of the headphone amplifier in decibels from -72.3 dB to 0.0 dB. Set is as a value below
+    -72.3 dB to mute the output See :attr:`TLV320AIC3204.left_input1_to_left_headphone_output`
+    to enable this passthrough.
+
+    :default: 0.0 dB
+    """
+
     right_input1_to_right_headphone_output_volume: float = _PagedVolumeRWBits(
         1, _REG_IN1R_TO_HPR_VOLUME, _UINT7_VOLUME_TABLE, True
     )
+    """The volume of the direct passthrough of the right channel of input 1 (IN1_R) to the right
+    channel of the headphone amplifier in decibels from -72.3 dB to 0.0 dB. Set is as a value below
+    -72.3 dB to mute the output See :attr:`TLV320AIC3204.right_input1_to_right_headphone_output`
+    to enable this passthrough.
+
+    :default: 0.0 dB
+    """
 
     @property
     def input1_to_headphone_output_volume(self) -> float:
+        """The volume of the direct passthrough of input 1 (IN1_L and IN1_R) to the headphone
+        amplifier in decibels from -72.3 dB to 0.0 dB. Set is as a value below -72.3 dB to mute the
+        output See :attr:`TLV320AIC3204.input1_to_headphone_output` to enable this passthrough.
+
+        :default: 0.0 dB
+        """
         return (
             self.left_input1_to_left_headphone_output_volume
             + self.right_input1_to_right_headphone_output_volume
