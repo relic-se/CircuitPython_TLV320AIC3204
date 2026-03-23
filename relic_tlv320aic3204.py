@@ -1294,8 +1294,23 @@ class TLV320AIC3204:  # noqa: PLR0904
     # MICBIAS
 
     micbias_enabled: bool = _PagedRWBit(1, _REG_MICBIAS, 6)
+    """The power state of the MICBIAS output.
+
+    :default: `False`
+    """
+
     micbias_mode: int = _PagedRWBits(1, 2, _REG_MICBIAS, 4)
+    """The output voltage configuration of MICBIAS. See MICBIAS_MODE_* constants for valid settings.
+
+    :default: :const:`MICBIAS_MODE_1V25`
+    """
+
     micbias_source: bool = _PagedRWBit(1, _REG_MICBIAS, 3)
+    """The voltage source of MICBIAS when :attr:`TLV320AIC3204.micbias_mode` is set as
+    :const:`MICBIAS_MODE_SOURCE`. See SOURCE_* constants for valid settings.
+
+    :default: :const:`SOURCE_AVDD`
+    """
 
     # Input
 
