@@ -1360,6 +1360,15 @@ class TLV320AIC3204:  # noqa: PLR0904
     def connect_left_input(
         self, input: int, impedance: int = IMPEDANCE_10K, balanced: bool = False
     ) -> None:
+        """Connect an input source to the left channel of the input amplifier.
+
+        :param input: The desired input source. See INPUT_* constants for valid settings.
+        :param impedance: The amount of resistance to use when connecting to the input amplifier.
+            See IMPEDANCE_* for valid settings. Defaults to :const:`IMPEDANCE_10K`.
+        :param balanced: Whether or not to use both channels of an input source to drive the input
+            amplifier for balanced operation. Only supported with :const:`INPUT_2` and
+            :const:`INPUT_3`. Defaults to `False`.
+        """
         if input == INPUT_1 and balanced:
             raise ValueError("Balanced IN1 input only supported on right channel")
 
@@ -1376,6 +1385,15 @@ class TLV320AIC3204:  # noqa: PLR0904
     def connect_right_input(
         self, input: int, impedance: int = IMPEDANCE_10K, balanced: bool = False
     ) -> None:
+        """Connect an input source to the right channel of the input amplifier.
+
+        :param input: The desired input source. See INPUT_* constants for valid settings.
+        :param impedance: The amount of resistance to use when connecting to the input amplifier.
+            See IMPEDANCE_* for valid settings. Defaults to :const:`IMPEDANCE_10K`.
+        :param balanced: Whether or not to use both channels of an input source to drive the input
+            amplifier for balanced operation. Only supported with :const:`INPUT_1` and
+            :const:`INPUT_3`. Defaults to `False`.
+        """
         if input == INPUT_2 and balanced:
             raise ValueError("Balanced IN2 input only supported on left channel")
 
@@ -1394,6 +1412,13 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._update_floating()
 
     def connect_input(self, input: int, impedance: int = IMPEDANCE_10K) -> None:
+        """Connect an input source to both channels of the input amplifier. Only supports unbalanced
+        operation.
+
+        :param input: The desired input source. See INPUT_* constants for valid settings.
+        :param impedance: The amount of resistance to use when connecting to the input amplifier.
+            See IMPEDANCE_* for valid settings. Defaults to :const:`IMPEDANCE_10K`.
+        """
         self.connect_left_input(input, impedance)
         self.connect_right_input(input, impedance)
 
@@ -1402,6 +1427,11 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def left_input_gain(self) -> float:
+        """The amount of gain in decibels of the left channel of the input amplifier from 0.0 dB to
+        47.5 dB in 0.5 dB increments.
+
+        :default: 0.0 dB
+        """
         return (
             min(max(self._left_input_gain, 0), 95) / 2
             if not self._left_input_gain_disabled
@@ -1419,6 +1449,11 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def right_input_gain(self) -> float:
+        """The amount of gain in decibels of the right channel of the input amplifier from 0.0 dB to
+        47.5 dB in 0.5 dB increments.
+
+        :default: 0.0 dB
+        """
         return (
             min(max(self._right_input_gain, 0), 95) / 2
             if not self._right_input_gain_disabled
@@ -1433,6 +1468,11 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def input_gain(self) -> float:
+        """The amount of gain in decibels of the input amplifier from 0.0 dB to 47.5 dB in 0.5 dB
+        increments.
+
+        :default: 0.0 dB
+        """
         return (self.left_input_gain + self.right_input_gain) / 2
 
     @input_gain.setter
