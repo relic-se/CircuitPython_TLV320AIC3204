@@ -936,10 +936,23 @@ class TLV320AIC3204:  # noqa: PLR0904
     # Headphone Output
 
     left_headphone_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 5)
+    """Whether or not the left channel of the headphone amplifier is powered.
+
+    :default: `False`
+    """
+
     right_headphone_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 4)
+    """Whether or not the right channel of the headphone amplifier is powered.
+
+    :default: `False`
+    """
 
     @property
     def headphone_output_enabled(self) -> bool:
+        """Whether or not the both channels of the headphone amplifier are powered.
+
+        :default: `False`
+        """
         return self.left_headphone_output_enabled or self.right_headphone_output_enabled
 
     @headphone_output_enabled.setter
@@ -948,10 +961,23 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.right_headphone_output_enabled = value
 
     left_headphone_output_muted: bool = _PagedRWBit(1, _REG_HPL_GAIN, 6)
+    """Whether or not the left channel of the headphone amplifier is muted.
+
+    :default: `True`
+    """
+
     right_headphone_output_muted: bool = _PagedRWBit(1, _REG_HPR_GAIN, 6)
+    """Whether or not the right channel of the headphone amplifier is muted.
+
+    :default: `True`
+    """
 
     @property
     def headphone_output_muted(self) -> bool:
+        """Whether or not both channels of the headphone amplifier are muted.
+
+        :default: `True`
+        """
         return self.left_headphone_output_muted or self.right_headphone_output_muted
 
     @headphone_output_muted.setter
@@ -960,10 +986,26 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.right_headphone_output_muted = value
 
     left_headphone_output_gain: int = _PagedRWBits(1, 6, _REG_HPL_GAIN, 0, signed=True)
+    """The amount of gain in decibels of the left channel of the headphone amplifier from -6 dB to
+    29 dB.
+
+    :default: 0 dB
+    """
+
     right_headphone_output_gain: int = _PagedRWBits(1, 6, _REG_HPR_GAIN, 0, signed=True)
+    """The amount of gain in decibels of the right channel of the headphone amplifier from -6 dB to
+    29 dB.
+
+    :default: 0 dB
+    """
 
     @property
     def headphone_output_gain(self) -> int:
+        """The amount of gain in decibels of both channels of the headphone amplifier from -6 dB to
+        29 dB.
+
+        :default: 0 dB
+        """
         return (self.left_headphone_output_gain + self.right_headphone_output_gain) / 2
 
     @headphone_output_gain.setter
