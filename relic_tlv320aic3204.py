@@ -6,8 +6,7 @@
 `relic_tlv320aic3204`
 ================================================================================
 
-Driver library for the TLV320AIC3204 audio codec
-
+CircuitPython driver library for the TLV320AIC3204 audio codec
 
 * Author(s): Cooper Dalrymple
 
@@ -28,8 +27,8 @@ import digitalio
 import microcontroller
 import pwmio
 from adafruit_bus_device.i2c_device import I2CDevice
-from adafruit_register.i2c_bit import RWBit as _RWBit
-from adafruit_register.i2c_bits import RWBits as _RWBits
+from adafruit_register.i2c_bit import RWBit
+from adafruit_register.i2c_bits import RWBits
 from busio import I2C
 from micropython import const
 
@@ -98,13 +97,8 @@ _REG_RIGHT_MICPGA_NEG = const(0x39)
 _REG_FLOATING_INPUT = const(0x3A)
 _REG_LEFT_MICPGA_GAIN = const(0x3B)
 _REG_RIGHT_MICPGA_GAIN = const(0x3C)
-_REG_MIC_POWERUP = const(0x47)
+_REG_INPUT_POWERUP = const(0x47)
 _REG_REF_POWERUP = const(0x7B)
-
-AUDIO_INTERFACE_I2S = const(0b00)
-AUDIO_INTERFACE_DSP = const(0b01)
-AUDIO_INTERFACE_RJF = const(0b10)
-AUDIO_INTERFACE_LJF = const(0b11)
 
 _PLL_CLKIN_MCLK = const(0b00)
 _PLL_CLKIN_BCLK = const(0b01)
@@ -121,40 +115,18 @@ _ADC_OSR_32 = const(0b00100000)
 _ADC_OSR_64 = const(0b01000000)
 _ADC_OSR_128 = const(0b10000000)
 
-DAC_PATH_DISABLED = const(0b00)
-DAC_PATH_NORMAL = const(0b01)
-DAC_PATH_SWAPPED = const(0b10)
-DAC_PATH_MIXED = const(0b11)
+_REF_POWERUP_SLOW = const(0b000)
+_REF_POWERUP_40MS = const(0b001)
+_REF_POWERUP_80MS = const(0b010)
+_REF_POWERUP_120MS = const(0b011)
+_REF_FORCE_POWERUP_SLOW = const(0b100)
+_REF_FORCE_POWERUP_40MS = const(0b101)
+_REF_FORCE_POWERUP_80MS = const(0b110)
+_REF_FORCE_POWERUP_120MS = const(0b111)
 
-REF_POWERUP_SLOW = const(0b000)
-REF_POWERUP_40MS = const(0b001)
-REF_POWERUP_80MS = const(0b010)
-REF_POWERUP_120MS = const(0b011)
-REF_FORCE_POWERUP_SLOW = const(0b100)
-REF_FORCE_POWERUP_40MS = const(0b101)
-REF_FORCE_POWERUP_80MS = const(0b110)
-REF_FORCE_POWERUP_120MS = const(0b111)
-
-MIC_POWERUP_3_1MS = const(0b01)
-MIC_POWERUP_6_4MS = const(0b10)
-MIC_POWERUP_1_6MS = const(0b11)
-
-SOURCE_AVDD = const(0)
-SOURCE_LDOIN = const(1)
-
-MICBIAS_MODE_1V25 = const(0b00)
-MICBIAS_MODE_1V7 = const(0b01)
-MICBIAS_MODE_2V5 = const(0b10)
-MICBIAS_MODE_SOURCE = const(0b11)
-
-MIC_INPUT_1 = const(0)
-MIC_INPUT_2 = const(1)
-MIC_INPUT_3 = const(2)
-
-MIC_DISCONNECTED = const(0b00)
-MIC_IMPEDANCE_10K = const(0b01)
-MIC_IMPEDANCE_20K = const(0b01)
-MIC_IMPEDANCE_40K = const(0b01)
+_INPUT_POWERUP_3_1MS = const(0b01)
+_INPUT_POWERUP_6_4MS = const(0b10)
+_INPUT_POWERUP_1_6MS = const(0b11)
 
 _UINT7_VOLUME_TABLE = (
     0,  #       0  Begin linear segment: round((-1.99 * dB) - 0.2)
@@ -320,8 +292,84 @@ _UINT6_VOLUME_TABLE = (
     -30.1,
 )
 
+AUDIO_INTERFACE_I2S = const(0b00)
+"""I2S format. Use with :attr:`TLV320AIC3204.audio_interface`."""
 
-class RWBit(_RWBit):
+AUDIO_INTERFACE_DSP = const(0b01)
+"""DSP format. Use with :attr:`TLV320AIC3204.audio_interface`."""
+
+AUDIO_INTERFACE_RJF = const(0b10)
+"""Right justified format. Use with :attr:`TLV320AIC3204.audio_interface`."""
+
+AUDIO_INTERFACE_LJF = const(0b11)
+"""Left justified format. Use with :attr:`TLV320AIC3204.audio_interface`."""
+
+DAC_PATH_DISABLED = const(0b00)
+"""DAC data path off."""
+
+DAC_PATH_NORMAL = const(0b01)
+"""Normal DAC data path (L->L or R->R)."""
+
+DAC_PATH_SWAPPED = const(0b10)
+"""Swapped DAC data path (R->L or L->R)."""
+
+DAC_PATH_MIXED = const(0b11)
+"""Mixed DAC data path (L+R)."""
+
+MICBIAS_MODE_1V25 = const(0b00)
+"""MICBIAS output voltage of 1.25V (when common mode is 0.9V). Use with
+:attr:`TLV320AIC3204.micbias_mode`.
+"""
+
+MICBIAS_MODE_1V7 = const(0b01)
+"""MICBIAS output voltage of 1.7V (when common mode is 0.9V). Use with
+:attr:`TLV320AIC3204.micbias_mode`.
+"""
+
+MICBIAS_MODE_2V5 = const(0b10)
+"""MICBIAS output voltage of 2.5V (when common mode is 0.9V). Use with
+:attr:`TLV320AIC3204.micbias_mode`.
+"""
+
+MICBIAS_MODE_SOURCE = const(0b11)
+"""MICBIAS output voltage is sourced from power supply as dictated by
+:attr:`TLV320AIC3204.micbias_source`. Use with :attr:`TLV320AIC3204.micbias_mode`.
+"""
+
+SOURCE_AVDD = const(0)
+"""Voltage is generated from AVDD. Use with :attr:`TLV320AIC3204.micbias_source`."""
+
+SOURCE_LDOIN = const(1)
+"""Voltage is generated from LDOIN. Use with :attr:`TLV320AIC3204.micbias_source`."""
+
+INPUT_1 = const(0)
+"""Use for routing either IN1L or IN1R to the MICPGA input with
+:attr:`TLV320AIC3204.connect_input`.
+"""
+
+INPUT_2 = const(1)
+"""Use for routing either IN2L or IN2R to the MICPGA input with
+:attr:`TLV320AIC3204.connect_input`.
+"""
+
+INPUT_3 = const(2)
+"""Use for routing either IN3L or IN3R to the MICPGA input with
+:attr:`TLV320AIC3204.connect_input`.
+"""
+
+_DISCONNECTED = const(0b00)
+
+IMPEDANCE_10K = const(0b01)
+"""Connect an input using 10k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
+
+IMPEDANCE_20K = const(0b01)
+"""Connect an input using 20k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
+
+IMPEDANCE_40K = const(0b01)
+"""Connect an input using 40k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
+
+
+class _PagedRWBit(RWBit):
     def __init__(  # noqa: PLR0913
         self,
         page: int,
@@ -336,15 +384,15 @@ class RWBit(_RWBit):
     def __get__(
         self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
     ) -> bool:
-        obj.page = self._page
+        obj._page = self._page
         return super().__get__(obj, objtype)
 
     def __set__(self, obj: I2CDeviceDriver, value: bool):
-        obj.page = self._page
+        obj._page = self._page
         super().__set__(obj, bool(value))
 
 
-class RWBits(_RWBits):
+class _PagedRWBits(RWBits):
     def __init__(  # noqa: PLR0913, PLR0917
         self,
         page: int,
@@ -361,15 +409,15 @@ class RWBits(_RWBits):
     def __get__(
         self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
     ) -> int:
-        obj.page = self._page
+        obj._page = self._page
         return super().__get__(obj, objtype)
 
     def __set__(self, obj: I2CDeviceDriver, value: int):
-        obj.page = self._page
+        obj._page = self._page
         super().__set__(obj, int(value))
 
 
-class CacheBits(_RWBits):
+class _CacheBits(RWBits):
     def __init__(  # noqa: PLR0913, PLR0917
         self,
         num_bits: int,
@@ -392,7 +440,7 @@ class CacheBits(_RWBits):
         super().__set__(obj, int(value))
 
 
-class VolumeBits(RWBits):
+class _PagedVolumeRWBits(_PagedRWBits):
     def __init__(self, page: int, register_address: int, table: tuple, mute: bool = False):
         super().__init__(page, 7, register_address, 0)
         self._table = table
@@ -419,7 +467,11 @@ class VolumeBits(RWBits):
 
 
 class TLV320AIC3204:  # noqa: PLR0904
-    page: int = CacheBits(8, _REG_PAGE, 0)
+    """Driver for the TI TLV320AIC3204 Stereo Codec with Line Inputs, Mic Inputs, Line Outputs and
+    Headphone Amplifier.
+    """
+
+    _page: int = _CacheBits(8, _REG_PAGE, 0)
 
     def __init__(
         self,
@@ -428,7 +480,17 @@ class TLV320AIC3204:  # noqa: PLR0904
         rst: microcontroller.Pin = None,
         address: int = _DEFAULT_I2C_ADDR,
     ) -> None:
-        self._page = None
+        """Initialize the TLV320AIC3204. The I2S bus will default to a sample rate of 44.1 kHz and
+        bit depth of 16 bits. Power will be configured according to Figure 21 of the datasheet with
+        3.3V power to LDOIN for high performance operation.
+
+        :param i2c: The I2C bus the device is connected to.
+        :param mclk: The main clock pin. If provided, it will be driven at 15 MHz to improve audio
+            quality, especially at lower sample rates.
+        :param rst: The reset pin. If provided, calling :attr:`TLV320AIC3204.reset` will perform a
+            hardware reset rather than a software reset for more dependable operation.
+        :param address: The I2C device address (default is 0x18).
+        """
         self.i2c_device: I2CDevice = I2CDevice(i2c, address)
 
         self._mclk = (
@@ -440,18 +502,18 @@ class TLV320AIC3204:  # noqa: PLR0904
             self._reset.direction = digitalio.Direction.OUTPUT
             self._reset.value = True
         else:
-            self._reset = RWBit(0, _REG_SOFTWARE_RESET, 0)
+            self._reset = _PagedRWBit(0, _REG_SOFTWARE_RESET, 0)
         self.reset()
 
         # Power Configuration (See Figure 21)
-        self.power_isolation = True
-        self.avdd_ldo_enabled = True
-        self.reference_powerup = REF_POWERUP_40MS
-        self.mic_powerup = MIC_POWERUP_3_1MS
-        self.analog_block_power_disabled = False
-        self.line_output_power_source = SOURCE_LDOIN
-        self.headphone_output_ldoin_3v3 = True
-        self.headphone_output_power_source = SOURCE_LDOIN
+        self._power_isolation = True
+        self._avdd_ldo_enabled = True
+        self._reference_powerup = _REF_POWERUP_40MS
+        self._input_powerup = _INPUT_POWERUP_3_1MS
+        self._analog_block_power_disabled = False
+        self._line_output_power_source = SOURCE_LDOIN
+        self._headphone_output_ldoin_3v3 = True
+        self._headphone_output_power_source = SOURCE_LDOIN
 
         self.dac_volume = -63.5
         self.adc_volume = -12.0
@@ -460,6 +522,9 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.bit_depth = 16
 
     def reset(self) -> None:
+        """Perform a full reset of the device configuration registers. If a reset pin was provided,
+        a hardware reset will be performed rather than a software reset.
+        """
         if isinstance(self._reset, digitalio.DigitalInOut):
             self._reset.value = False
             time.sleep(0.002)
@@ -469,29 +534,38 @@ class TLV320AIC3204:  # noqa: PLR0904
             self._reset = True
         time.sleep(0.01)
 
-    power_isolation: bool = RWBit(1, _REG_POWER_CONFIG, 3)
+    # Power
 
-    analog_block_power_disabled: bool = RWBit(1, _REG_LDO_CONTROL, 3)
+    _power_isolation: bool = _PagedRWBit(1, _REG_POWER_CONFIG, 3)
 
-    avdd_ldo_enabled: bool = RWBit(1, _REG_LDO_CONTROL, 0)
+    _analog_block_power_disabled: bool = _PagedRWBit(1, _REG_LDO_CONTROL, 3)
 
-    reference_powerup: int = RWBits(1, 3, _REG_REF_POWERUP, 0)
+    _avdd_ldo_enabled: bool = _PagedRWBit(1, _REG_LDO_CONTROL, 0)
 
-    mic_powerup: int = RWBits(1, 6, _REG_MIC_POWERUP, 0)
+    _reference_powerup: int = _PagedRWBits(1, 3, _REG_REF_POWERUP, 0)
 
-    audio_interface: int = RWBits(0, 2, _REG_AUDIO_INTERFACE_1, 6)
+    _input_powerup: int = _PagedRWBits(1, 6, _REG_INPUT_POWERUP, 0)
 
-    line_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
+    _line_output_power_source: bool = _PagedRWBit(1, _REG_COMMON_MODE, 3)
 
-    headphone_output_ldoin_3v3: bool = RWBit(1, _REG_COMMON_MODE, 0)
+    _headphone_output_ldoin_3v3: bool = _PagedRWBit(1, _REG_COMMON_MODE, 0)
 
-    headphone_output_power_source: bool = RWBit(1, _REG_COMMON_MODE, 3)
+    _headphone_output_power_source: bool = _PagedRWBit(1, _REG_COMMON_MODE, 3)
 
-    _bit_depth: int = RWBits(0, 2, _REG_AUDIO_INTERFACE_1, 4)
+    # Audio Interface
+
+    audio_interface: int = _PagedRWBits(0, 2, _REG_AUDIO_INTERFACE_1, 6)
+    """The audio interface type. See AUDIO_INTERFACE_* constants for valid settings.
+
+    :default: :const:`AUDIO_INTERFACE_I2S`.
+    """
+
+    _bit_depth: int = _PagedRWBits(0, 2, _REG_AUDIO_INTERFACE_1, 4)
 
     @property
     def bit_depth(self) -> int:
-        """The number of bits per sample. The values 16, 20, 24, and 32 are supported.
+        """The number of bits per sample. Although the values of 16, 20, 24, and 32 are possible,
+        only 16 is supported by CircuitPython.
 
         :default: 16
         """
@@ -503,87 +577,15 @@ class TLV320AIC3204:  # noqa: PLR0904
             raise ValueError("CircuitPython I2S only supports 16-bit stereo")
         self._bit_depth = (value - 16) // 4
 
-    dac_loopback: bool = RWBit(0, _REG_AUDIO_INTERFACE_3, 5)
-    """If set as `True`, DAC input is routed to ADC output."""
+    # Clocking
 
-    adc_loopback: bool = RWBit(0, _REG_AUDIO_INTERFACE_3, 4)
-    """If set as `True`, ADC output is routed to DAC input."""
+    _pll_enabled: bool = _PagedRWBit(0, _REG_CLOCK_2, 7)
+    _pll_p: int = _PagedRWBits(0, 3, _REG_CLOCK_2, 4)
+    _pll_r: int = _PagedRWBits(0, 3, _REG_CLOCK_2, 0)
+    _pll_j: int = _PagedRWBits(0, 6, _REG_CLOCK_3, 0)
 
-    left_dac_enabled: bool = RWBit(0, _REG_DAC_CHANNEL_1, 7)
-    right_dac_enabled: bool = RWBit(0, _REG_DAC_CHANNEL_1, 6)
-
-    @property
-    def dac_enabled(self) -> bool:
-        return self.left_dac_enabled or self.right_dac_enabled
-
-    @dac_enabled.setter
-    def dac_enabled(self, value: bool) -> None:
-        self.left_dac_enabled = value
-        self.right_dac_enabled = value
-
-    dac_processing_block: int = RWBits(0, 5, _REG_DAC_PROCESSING_BLOCK, 0)
-    adc_processing_block: int = RWBits(0, 5, _REG_ADC_PROCESSING_BLOCK, 0)
-
-    left_dac_path: int = RWBits(0, 2, _REG_DAC_CHANNEL_1, 4)
-    right_dac_path: int = RWBits(0, 2, _REG_DAC_CHANNEL_1, 2)
-
-    @property
-    def dac_path(self) -> int:
-        return self.left_dac_path
-
-    @dac_path.setter
-    def dac_path(self, value: int) -> None:
-        self.left_dac_path = value
-        self.right_dac_path = value
-
-    left_dac_muted: bool = RWBit(0, _REG_DAC_CHANNEL_2, 3)
-    right_dac_muted: bool = RWBit(0, _REG_DAC_CHANNEL_2, 2)
-
-    @property
-    def dac_muted(self) -> bool:
-        return self.left_dac_muted or self.right_dac_muted
-
-    @dac_muted.setter
-    def dac_muted(self, value: bool) -> None:
-        self.left_dac_muted = value
-        self.right_dac_muted = value
-
-    _left_dac_volume: int = RWBits(0, 8, _REG_LEFT_DAC_VOLUME, 0, signed=True)
-
-    @property
-    def left_dac_volume(self) -> float:
-        return self._left_dac_volume / 2
-
-    @left_dac_volume.setter
-    def left_dac_volume(self, value: float) -> None:
-        self._left_dac_volume = min(max(round(value * 2), -127), 48)
-
-    _right_dac_volume: int = RWBits(0, 8, _REG_RIGHT_DAC_VOLUME, 0, signed=True)
-
-    @property
-    def right_dac_volume(self) -> float:
-        return self._right_dac_volume / 2
-
-    @right_dac_volume.setter
-    def right_dac_volume(self, value: float) -> None:
-        self._right_dac_volume = min(max(round(value * 2), -127), 48)
-
-    @property
-    def dac_volume(self) -> float:
-        return self.left_dac_volume
-
-    @dac_volume.setter
-    def dac_volume(self, value: float) -> None:
-        self.left_dac_volume = value
-        self.right_dac_volume = value
-
-    _pll_enabled: bool = RWBit(0, _REG_CLOCK_2, 7)
-    _pll_p: int = RWBits(0, 3, _REG_CLOCK_2, 4)
-    _pll_r: int = RWBits(0, 3, _REG_CLOCK_2, 0)
-    _pll_j: int = RWBits(0, 6, _REG_CLOCK_3, 0)
-
-    _pll_d_msb: int = RWBits(0, 6, _REG_CLOCK_4, 0)
-    _pll_d_lsb: int = RWBits(0, 8, _REG_CLOCK_5, 0)
+    _pll_d_msb: int = _PagedRWBits(0, 6, _REG_CLOCK_4, 0)
+    _pll_d_lsb: int = _PagedRWBits(0, 8, _REG_CLOCK_5, 0)
 
     @property
     def _pll_d(self) -> int:
@@ -594,20 +596,20 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._pll_d_lsb = value & 0xFF
         self._pll_d_msb = (value >> 8) & 0x3F
 
-    _pll_clkin: int = RWBits(0, 2, _REG_CLOCK_1, 2)
+    _pll_clkin: int = _PagedRWBits(0, 2, _REG_CLOCK_1, 2)
 
-    _codec_clkin: int = RWBits(0, 2, _REG_CLOCK_1, 0)
+    _codec_clkin: int = _PagedRWBits(0, 2, _REG_CLOCK_1, 0)
 
-    _ndac_enabled: bool = RWBit(0, _REG_NDAC, 7)
+    _ndac_enabled: bool = _PagedRWBit(0, _REG_NDAC, 7)
 
-    _ndac: int = RWBits(0, 7, _REG_NDAC, 0)
+    _ndac: int = _PagedRWBits(0, 7, _REG_NDAC, 0)
 
-    _mdac_enabled: bool = RWBit(0, _REG_MDAC, 7)
+    _mdac_enabled: bool = _PagedRWBit(0, _REG_MDAC, 7)
 
-    _mdac: int = RWBits(0, 7, _REG_MDAC, 0)
+    _mdac: int = _PagedRWBits(0, 7, _REG_MDAC, 0)
 
-    _dac_osr_lsb: int = RWBits(0, 8, _REG_DAC_OSR_LSB, 0)
-    _dac_osr_msb: int = RWBits(0, 2, _REG_DAC_OSR_MSB, 0)
+    _dac_osr_lsb: int = _PagedRWBits(0, 8, _REG_DAC_OSR_LSB, 0)
+    _dac_osr_msb: int = _PagedRWBits(0, 2, _REG_DAC_OSR_MSB, 0)
 
     @property
     def _dac_osr(self) -> int:
@@ -618,7 +620,7 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._dac_osr_lsb = value & 0xFF
         self._dac_osr_msb = (value >> 8) & 0x03
 
-    _adc_osr: int = RWBits(0, 8, _REG_ADC_OSR, 0)
+    _adc_osr: int = _PagedRWBits(0, 8, _REG_ADC_OSR, 0)
 
     @property
     def sample_rate(self) -> int:
@@ -629,7 +631,7 @@ class TLV320AIC3204:  # noqa: PLR0904
         if value not in {8000, 11025, 22050, 44100, 48000}:
             raise ValueError("Need a valid sample rate: 8000, 11025, 22050, 44100, or 48000")
 
-        aosr = _ADC_OSR_128
+        aosr = _ADC_OSR_128  # TODO: Validate with adc_processing_block. See Table 2.
         if self._mclk is None:
             if value == 22050:
                 p, r, j, d, ndac, mdac, dosr, aosr = 1, 4, 38, 0, 19, 1, 256, _ADC_OSR_256
@@ -687,11 +689,271 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._dac_osr = dosr
         self._adc_osr = aosr
 
-    left_headphone_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 5)
-    right_headphone_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 4)
+    # DAC
+
+    dac_loopback: bool = _PagedRWBit(0, _REG_AUDIO_INTERFACE_3, 5)
+    """If set as `True`, I2S DAC input is routed to ADC output.
+
+    :default: `False`
+    """
+
+    dac_processing_block: int = _PagedRWBits(0, 5, _REG_DAC_PROCESSING_BLOCK, 0)
+    """The signal processing block of the DAC from 1 to 25. See Table 3 in the datasheet for
+    details.
+
+    :default: 1 (PRB_P1)
+    """
+
+    left_dac_enabled: bool = _PagedRWBit(0, _REG_DAC_CHANNEL_1, 7)
+    """The power state of the left channel of the DAC. Must be enabled to use either the left
+    channel of the DAC or ADC.
+
+    :default: `False`
+    """
+
+    right_dac_enabled: bool = _PagedRWBit(0, _REG_DAC_CHANNEL_1, 6)
+    """The power state of the left channel of the DAC. Must be enabled to use either the left
+    channel of the DAC or ADC.
+
+    :default: `False`
+    """
+
+    @property
+    def dac_enabled(self) -> bool:
+        """The power state of both channels of the DAC. Must be enabled to use either the DAC or
+        ADC.
+
+        :default: `False`
+        """
+        return self.left_dac_enabled or self.right_dac_enabled
+
+    @dac_enabled.setter
+    def dac_enabled(self, value: bool) -> None:
+        self.left_dac_enabled = value
+        self.right_dac_enabled = value
+
+    left_dac_path: int = _PagedRWBits(0, 2, _REG_DAC_CHANNEL_1, 4)
+    """The DAC path of the left channel. See DAC_PATH_* constants for relevant configurations.
+
+    :default: :const:`DAC_PATH_NORMAL`
+    """
+
+    right_dac_path: int = _PagedRWBits(0, 2, _REG_DAC_CHANNEL_1, 2)
+    """The DAC path of the right channel. See DAC_PATH_* constants for relevant configurations.
+
+    :default: :const:`DAC_PATH_NORMAL`
+    """
+
+    @property
+    def dac_path(self) -> int:
+        """The DAC path of both channels. See DAC_PATH_* constants for relevant configurations.
+
+        :default: :const:`DAC_PATH_NORMAL`
+        """
+        return self.left_dac_path
+
+    @dac_path.setter
+    def dac_path(self, value: int) -> None:
+        self.left_dac_path = value
+        self.right_dac_path = value
+
+    left_dac_muted: bool = _PagedRWBit(0, _REG_DAC_CHANNEL_2, 3)
+    """The muted state of the left channel of the DAC.
+
+    :default: `True`
+    """
+
+    right_dac_muted: bool = _PagedRWBit(0, _REG_DAC_CHANNEL_2, 2)
+    """The muted state of the right channel of the DAC.
+
+    :default: `True`
+    """
+
+    @property
+    def dac_muted(self) -> bool:
+        """The muted state of both channels of the DAC.
+
+        :default: `True`
+        """
+        return self.left_dac_muted or self.right_dac_muted
+
+    @dac_muted.setter
+    def dac_muted(self, value: bool) -> None:
+        self.left_dac_muted = value
+        self.right_dac_muted = value
+
+    _left_dac_volume: int = _PagedRWBits(0, 8, _REG_LEFT_DAC_VOLUME, 0, signed=True)
+
+    @property
+    def left_dac_volume(self) -> float:
+        """The digital volume in dB of the left channel of the DAC. Range is -63.5 dB to 24 dB.
+
+        :default: 0.0 dB
+        """
+        return self._left_dac_volume / 2
+
+    @left_dac_volume.setter
+    def left_dac_volume(self, value: float) -> None:
+        self._left_dac_volume = min(max(round(value * 2), -127), 48)
+
+    _right_dac_volume: int = _PagedRWBits(0, 8, _REG_RIGHT_DAC_VOLUME, 0, signed=True)
+
+    @property
+    def right_dac_volume(self) -> float:
+        """The digital volume in dB of the right channel of the DAC. Range is -63.5 dB to 24 dB.
+
+        :default: 0.0 dB
+        """
+        return self._right_dac_volume / 2
+
+    @right_dac_volume.setter
+    def right_dac_volume(self, value: float) -> None:
+        self._right_dac_volume = min(max(round(value * 2), -127), 48)
+
+    @property
+    def dac_volume(self) -> float:
+        """The digital volume in dB of the DAC. Range is -63.5 dB to 24 dB.
+
+        :default: 0.0 dB
+        """
+        return (self.left_dac_volume + self.right_dac_volume) / 2
+
+    @dac_volume.setter
+    def dac_volume(self, value: float) -> None:
+        self.left_dac_volume = value
+        self.right_dac_volume = value
+
+    # ADC
+
+    adc_loopback: bool = _PagedRWBit(0, _REG_AUDIO_INTERFACE_3, 4)
+    """If set as `True`, I2S ADC output is routed to DAC input.
+
+    :default: `False`
+    """
+
+    adc_processing_block: int = _PagedRWBits(0, 5, _REG_ADC_PROCESSING_BLOCK, 0)
+    """The signal processing block of the ADC from 1 to 18. See Table 2 in the datasheet for
+    details.
+
+    :default: 1 (PRB_R1)
+    """
+
+    left_adc_enabled: bool = _PagedRWBit(0, _REG_ADC_CHANNEL_1, 7)
+    """The power state of the left channel of the ADC. Also depends on
+    :attr:`TLV320AIC3204.left_dac_enabled`. Both must be set as `True` to use ADC.
+
+    :default: `False`
+    """
+
+    right_adc_enabled: bool = _PagedRWBit(0, _REG_ADC_CHANNEL_1, 6)
+    """The power state of the right channel of the ADC. Also depends on
+    :attr:`TLV320AIC3204.right_dac_enabled`. Both must be set as `True` to use ADC.
+
+    :default: `False`
+    """
+
+    @property
+    def adc_enabled(self) -> bool:
+        """The power state of both channels of the ADC. Also depends on
+        :attr:`TLV320AIC3204.dac_enabled`. Both must be set as `True` to use ADC.
+
+        :default: `False`
+        """
+        return self.left_adc_enabled or self.right_adc_enabled
+
+    @adc_enabled.setter
+    def adc_enabled(self, value: bool) -> None:
+        self.left_adc_enabled = value
+        self.right_adc_enabled = value
+
+    left_adc_muted: bool = _PagedRWBit(0, _REG_ADC_CHANNEL_2, 7)
+    """The muted state of the left channel of the ADC.
+
+    :default: `True`
+    """
+
+    right_adc_muted: bool = _PagedRWBit(0, _REG_ADC_CHANNEL_2, 3)
+    """The muted state of the right channel of the ADC.
+
+    :default: `True`
+    """
+
+    @property
+    def adc_muted(self) -> bool:
+        """The muted state of both channels of the ADC.
+
+        :default: `True`
+        """
+        return self.left_adc_muted or self.right_adc_muted
+
+    @adc_muted.setter
+    def adc_muted(self, value: bool) -> None:
+        self.left_adc_muted = value
+        self.right_adc_muted = value
+
+    _left_adc_volume: int = _PagedRWBits(0, 7, _REG_LEFT_ADC_VOLUME, 0, signed=True)
+
+    @property
+    def left_adc_volume(self) -> float:
+        """The digital volume in dB of the left channel of the ADC. Range is -12 dB to 20 dB in
+        0.5 dB increments.
+
+        :default: 0.0 dB
+        """
+        return self._left_adc_volume / 2
+
+    @left_adc_volume.setter
+    def left_adc_volume(self, value: float) -> None:
+        self._left_adc_volume = min(max(round(value * 2), -24), 40)
+
+    _right_adc_volume: int = _PagedRWBits(0, 7, _REG_RIGHT_ADC_VOLUME, 0, signed=True)
+
+    @property
+    def right_adc_volume(self) -> float:
+        """The digital volume in dB of the right channel of the ADC. Range is -12 dB to 20 dB in
+        0.5 dB increments.
+
+        :default: 0.0 dB
+        """
+        return self._right_adc_volume / 2
+
+    @right_adc_volume.setter
+    def right_adc_volume(self, value: float) -> None:
+        self._right_adc_volume = min(max(round(value * 2), -24), 40)
+
+    @property
+    def adc_volume(self) -> float:
+        """The digital volume in dB of the ADC. Range is -12 dB to 20 dB in 0.5 dB increments.
+
+        :default: 0.0 dB
+        """
+        return (self.left_adc_volume + self.right_adc_volume) / 2
+
+    @adc_volume.setter
+    def adc_volume(self, value: float) -> None:
+        self.left_adc_volume = value
+        self.right_adc_volume = value
+
+    # Headphone Output
+
+    left_headphone_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 5)
+    """Whether or not the left channel of the headphone amplifier is powered.
+
+    :default: `False`
+    """
+
+    right_headphone_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 4)
+    """Whether or not the right channel of the headphone amplifier is powered.
+
+    :default: `False`
+    """
 
     @property
     def headphone_output_enabled(self) -> bool:
+        """Whether or not the both channels of the headphone amplifier are powered.
+
+        :default: `False`
+        """
         return self.left_headphone_output_enabled or self.right_headphone_output_enabled
 
     @headphone_output_enabled.setter
@@ -699,23 +961,81 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_headphone_output_enabled = value
         self.right_headphone_output_enabled = value
 
-    left_line_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 3)
-    right_line_output_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 2)
+    left_headphone_output_muted: bool = _PagedRWBit(1, _REG_HPL_GAIN, 6)
+    """Whether or not the left channel of the headphone amplifier is muted.
+
+    :default: `True`
+    """
+
+    right_headphone_output_muted: bool = _PagedRWBit(1, _REG_HPR_GAIN, 6)
+    """Whether or not the right channel of the headphone amplifier is muted.
+
+    :default: `True`
+    """
 
     @property
-    def line_output_enabled(self) -> bool:
-        return self.left_line_output_enabled or self.right_line_output_enabled
+    def headphone_output_muted(self) -> bool:
+        """Whether or not both channels of the headphone amplifier are muted.
 
-    @line_output_enabled.setter
-    def line_output_enabled(self, value: bool) -> None:
-        self.left_line_output_enabled = value
-        self.right_line_output_enabled = value
+        :default: `True`
+        """
+        return self.left_headphone_output_muted or self.right_headphone_output_muted
 
-    left_dac_to_left_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 3)
-    right_dac_to_right_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 3)
+    @headphone_output_muted.setter
+    def headphone_output_muted(self, value: bool) -> None:
+        self.left_headphone_output_muted = value
+        self.right_headphone_output_muted = value
+
+    left_headphone_output_gain: int = _PagedRWBits(1, 6, _REG_HPL_GAIN, 0, signed=True)
+    """The amount of gain in decibels of the left channel of the headphone amplifier from -6 dB to
+    29 dB.
+
+    :default: 0 dB
+    """
+
+    right_headphone_output_gain: int = _PagedRWBits(1, 6, _REG_HPR_GAIN, 0, signed=True)
+    """The amount of gain in decibels of the right channel of the headphone amplifier from -6 dB to
+    29 dB.
+
+    :default: 0 dB
+    """
+
+    @property
+    def headphone_output_gain(self) -> int:
+        """The amount of gain in decibels of both channels of the headphone amplifier from -6 dB to
+        29 dB.
+
+        :default: 0 dB
+        """
+        return (self.left_headphone_output_gain + self.right_headphone_output_gain) / 2
+
+    @headphone_output_gain.setter
+    def headphone_output_gain(self, value: int) -> None:
+        self.left_headphone_output_gain = value
+        self.right_headphone_output_gain = value
+
+    # Headphone Output Routing
+
+    left_dac_to_left_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 3)
+    """Whether or not to route the output of the left channel of the DAC to the left channel of the
+    headphone amplifier.
+
+    :default: `False`
+    """
+
+    right_dac_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 3)
+    """Whether or not to route the output of the right channel of the DAC to the right channel of
+    the headphone amplifier.
+
+    :default: `False`
+    """
 
     @property
     def dac_to_headphone_output(self) -> bool:
+        """Whether or not to route the output of the DAC to the headphone amplifier.
+
+        :default: `False`
+        """
         return self.left_dac_to_left_headphone_output or self.right_dac_to_right_headphone_output
 
     @dac_to_headphone_output.setter
@@ -723,64 +1043,65 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_dac_to_left_headphone_output = value
         self.right_dac_to_right_headphone_output = value
 
-    left_dac_to_left_line_output: bool = RWBit(1, _REG_LOL_ROUTING, 3)
-    right_dac_to_right_line_output: bool = RWBit(1, _REG_LOR_ROUTING, 3)
+    left_input_to_left_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 1)
+    """Whether or not to route the output of the left channel of the input passthrough to the left
+    channel of the headphone amplifier. See :attr:`TLV320AIC3204.left_input_passthrough_enabled`
+    and :attr:`TLV320AIC3204.left_input_passthrough_volume` to control the passthrough mixer.
+
+    :default: `False`
+    """
+
+    right_input_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPR_ROUTING, 1)
+    """Whether or not to route the output of the right channel of the input passthrough to the right
+    channel of the headphone amplifier. See :attr:`TLV320AIC3204.right_input_passthrough_enabled`
+    and :attr:`TLV320AIC3204.right_input_passthrough_volume` to control the passthrough mixer.
+
+    :default: `False`
+    """
 
     @property
-    def dac_to_line_output(self) -> bool:
-        return self.left_dac_to_left_line_output or self.right_dac_to_right_line_output
+    def input_to_headphone_output(self) -> bool:
+        """Whether or not to route the output of the input passthrough to the headphone amplifier.
+        See :attr:`TLV320AIC3204.input_passthrough_enabled` and
+        :attr:`TLV320AIC3204.input_passthrough_volume` to control the passthrough mixer.
 
-    @dac_to_line_output.setter
-    def dac_to_line_output(self, value: bool) -> None:
-        self.left_dac_to_left_line_output = value
-        self.right_dac_to_right_line_output = value
-
-    left_input_mixer_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 1)
-    right_input_mixer_enabled: bool = RWBit(1, _REG_OUTPUT_DRIVER_POWER, 0)
-
-    @property
-    def input_mixer_enabled(self) -> bool:
-        return self.left_input_mixer_enabled or self.right_input_mixer_amp_enabled
-
-    @input_mixer_enabled.setter
-    def input_mixer_enabled(self, value: bool) -> None:
-        self.left_input_mixer_enabled = value
-        self.right_input_mixer_enabled = value
-
-    left_input_mixer_to_left_line_output: bool = RWBit(1, _REG_LOL_ROUTING, 1)
-    right_input_mixer_to_right_line_output: bool = RWBit(1, _REG_LOR_ROUTING, 1)
-
-    @property
-    def input_mixer_to_line_output(self) -> bool:
+        :default: `False`
+        """
         return (
-            self.left_input_mixer_to_left_line_output or self.right_input_mixer_to_right_line_output
+            self.left_input_to_left_headphone_output or self.right_input_to_right_headphone_output
         )
 
-    @input_mixer_to_line_output.setter
-    def input_mixer_to_line_output(self, value: bool) -> None:
-        self.left_input_mixer_to_left_line_output = value
-        self.right_input_mixer_to_right_line_output = value
+    @input_to_headphone_output.setter
+    def input_to_headphone_output(self, value: bool) -> None:
+        self.left_input_to_left_headphone_output = value
+        self.right_input_to_right_headphone_output = value
 
-    left_input_mixer_to_left_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 1)
-    right_input_mixer_to_right_headphone_output: bool = RWBit(1, _REG_HPR_ROUTING, 1)
+    left_input1_to_left_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 2)
+    """Whether or not to route the output of the direct passthrough of the left channel of input 1
+    (IN1_L) to the left channel of the headphone amplifier. See
+    :attr:`TLV320AIC3204.left_input1_to_left_headphone_output_volume` to control the volume of this
+    passthrough.
 
-    @property
-    def input_mixer_to_headphone_output(self) -> bool:
-        return (
-            self.left_input_mixer_to_left_headphone_output
-            or self.right_input_mixer_to_right_headphone_output
-        )
+    :default: `False`
+    """
 
-    @input_mixer_to_headphone_output.setter
-    def input_mixer_to_headphone_output(self, value: bool) -> None:
-        self.left_input_mixer_to_left_headphone_output = value
-        self.right_input_mixer_to_right_headphone_output = value
+    right_input1_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPR_ROUTING, 2)
+    """Whether or not to route the output of the direct passthrough of the right channel of input 1
+    (IN1_R) to the right channel of the headphone amplifier. See
+    :attr:`TLV320AIC3204.right_input1_to_left_headphone_output_volume` to control the volume of this
+    passthrough.
 
-    left_input1_to_left_headphone_output: bool = RWBit(1, _REG_HPL_ROUTING, 2)
-    right_input1_to_right_headphone_output: bool = RWBit(1, _REG_HPR_ROUTING, 2)
+    :default: `False`
+    """
 
     @property
     def input1_to_headphone_output(self) -> bool:
+        """Whether or not to route the output of the direct passthrough of input 1 (IN1_L and IN1_R)
+        to the headphone amplifier. See :attr:`TLV320AIC3204.input1_to_headphone_output_volume` to
+        control the volume of this passthrough.
+
+        :default: `False`
+        """
         return (
             self.left_input1_to_left_headphone_output or self.right_input1_to_right_headphone_output
         )
@@ -790,67 +1111,91 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_input1_to_left_headphone_output = value
         self.right_input1_to_right_headphone_output = value
 
-    left_input1_to_left_headphone_output_volume: float = VolumeBits(
+    left_input1_to_left_headphone_output_volume: float = _PagedVolumeRWBits(
         1, _REG_IN1L_TO_HPL_VOLUME, _UINT7_VOLUME_TABLE, True
     )
-    right_input1_to_right_headphone_output_volume: float = VolumeBits(
+    """The volume of the direct passthrough of the left channel of input 1 (IN1_L) to the left
+    channel of the headphone amplifier in decibels from -72.3 dB to 0.0 dB. Set is as a value below
+    -72.3 dB to mute the output See :attr:`TLV320AIC3204.left_input1_to_left_headphone_output`
+    to enable this passthrough.
+
+    :default: 0.0 dB
+    """
+
+    right_input1_to_right_headphone_output_volume: float = _PagedVolumeRWBits(
         1, _REG_IN1R_TO_HPR_VOLUME, _UINT7_VOLUME_TABLE, True
     )
+    """The volume of the direct passthrough of the right channel of input 1 (IN1_R) to the right
+    channel of the headphone amplifier in decibels from -72.3 dB to 0.0 dB. Set is as a value below
+    -72.3 dB to mute the output See :attr:`TLV320AIC3204.right_input1_to_right_headphone_output`
+    to enable this passthrough.
+
+    :default: 0.0 dB
+    """
 
     @property
     def input1_to_headphone_output_volume(self) -> float:
-        return self.left_input1_to_left_headphone_output_volume
+        """The volume of the direct passthrough of input 1 (IN1_L and IN1_R) to the headphone
+        amplifier in decibels from -72.3 dB to 0.0 dB. Set is as a value below -72.3 dB to mute the
+        output See :attr:`TLV320AIC3204.input1_to_headphone_output` to enable this passthrough.
+
+        :default: 0.0 dB
+        """
+        return (
+            self.left_input1_to_left_headphone_output_volume
+            + self.right_input1_to_right_headphone_output_volume
+        ) / 2
 
     @input1_to_headphone_output_volume.setter
     def input1_to_headphone_output_volume(self, value: float) -> None:
         self.left_input1_to_left_headphone_output_volume = value
         self.right_input1_to_right_headphone_output_volume = value
 
-    left_input_mixer_volume: float = VolumeBits(
-        1, _REG_MIXER_LEFT_VOLUME, _UINT6_VOLUME_TABLE, True
-    )
-    right_input_mixer_volume: float = VolumeBits(
-        1, _REG_MIXER_RIGHT_VOLUME, _UINT6_VOLUME_TABLE, True
-    )
+    # Line Output
+
+    left_line_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 3)
+    """Whether or not the left channel of the line level output driver is powered.
+
+    :default: `False`
+    """
+
+    right_line_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 2)
+    """Whether or not the right channel of the line level output driver is powered.
+
+    :default: `False`
+    """
 
     @property
-    def input_mixer_volume(self) -> float:
-        return self.left_input_mixer_volume
+    def line_output_enabled(self) -> bool:
+        """Whether or not both channels of the line level output driver are powered.
 
-    @input_mixer_volume.setter
-    def input_mixer_volume(self, value: float) -> None:
-        self.left_input_mixer_volume = value
-        self.right_input_mixer_volume = value
+        :default: `False`
+        """
+        return self.left_line_output_enabled or self.right_line_output_enabled
 
-    left_headphone_output_muted: bool = RWBit(1, _REG_HPL_GAIN, 6)
-    right_headphone_output_muted: bool = RWBit(1, _REG_HPR_GAIN, 6)
+    @line_output_enabled.setter
+    def line_output_enabled(self, value: bool) -> None:
+        self.left_line_output_enabled = value
+        self.right_line_output_enabled = value
 
-    @property
-    def headphone_output_muted(self) -> bool:
-        return self.left_headphone_output_muted or self.right_headphone_output_muted
+    left_line_output_muted: bool = _PagedRWBit(1, _REG_LOL_GAIN, 6)
+    """Whether or not the left channel of the line level output driver is muted.
 
-    @headphone_output_muted.setter
-    def headphone_output_muted(self, value: bool) -> None:
-        self.left_headphone_output_muted = value
-        self.right_headphone_output_muted = value
+    :default: `True`
+    """
 
-    left_headphone_output_gain: float = RWBits(1, 6, _REG_HPL_GAIN, 0, signed=True)
-    right_headphone_output_gain: float = RWBits(1, 6, _REG_HPR_GAIN, 0, signed=True)
+    right_line_output_muted: bool = _PagedRWBit(1, _REG_LOR_GAIN, 6)
+    """Whether or not the right channel of the line level output driver is muted.
 
-    @property
-    def headphone_output_gain(self) -> float:
-        return self.left_headphone_output_gain
-
-    @headphone_output_gain.setter
-    def headphone_output_gain(self, value: float) -> None:
-        self.left_headphone_output_gain = value
-        self.right_headphone_output_gain = value
-
-    left_line_output_muted: bool = RWBit(1, _REG_LOL_GAIN, 6)
-    right_line_output_muted: bool = RWBit(1, _REG_LOR_GAIN, 6)
+    :default: `True`
+    """
 
     @property
     def line_output_muted(self) -> bool:
+        """Whether or not the line level output driver is muted.
+
+        :default: `True`
+        """
         return self.left_line_output_muted or self.right_line_output_muted
 
     @line_output_muted.setter
@@ -858,195 +1203,339 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.left_line_output_muted = value
         self.right_line_output_muted = value
 
-    left_line_output_gain: float = RWBits(1, 6, _REG_LOL_GAIN, 0, signed=True)
-    right_line_output_gain: float = RWBits(1, 6, _REG_LOR_GAIN, 0, signed=True)
+    left_line_output_gain: int = _PagedRWBits(1, 6, _REG_LOL_GAIN, 0, signed=True)
+    """The amount of gain in decibels of the left channel of the line level output driver from -6 dB
+    to 29 dB.
+
+    :default: 0 dB
+    """
+
+    right_line_output_gain: int = _PagedRWBits(1, 6, _REG_LOR_GAIN, 0, signed=True)
+    """The amount of gain in decibels of the right channel of the line level output driver from -6
+    dB to 29 dB.
+
+    :default: 0 dB
+    """
 
     @property
-    def line_output_gain(self) -> float:
-        return self.left_line_output_gain
+    def line_output_gain(self) -> int:
+        """The amount of gain in decibels of the line level output driver from -6 dB to 29 dB.
+
+        :default: 0 dB
+        """
+        return (self.left_line_output_gain + self.right_line_output_gain) // 2
 
     @line_output_gain.setter
-    def line_output_gain(self, value: float) -> None:
+    def line_output_gain(self, value: int) -> None:
         self.left_line_output_gain = value
         self.right_line_output_gain = value
 
-    micbias_enabled: bool = RWBit(1, _REG_MICBIAS, 6)
-    micbias_mode: int = RWBits(1, 2, _REG_MICBIAS, 4)
-    micbias_source: bool = RWBit(1, _REG_MICBIAS, 3)
+    # Line Output Routing
 
-    _in1l_to_left_mic_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 6)
-    _in2l_to_left_mic_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 4)
-    _in3l_to_left_mic_pos: int = RWBits(1, 2, _REG_LEFT_MICPGA_POS, 2)
+    left_dac_to_left_line_output: bool = _PagedRWBit(1, _REG_LOL_ROUTING, 3)
+    """Whether or not to route the output of the left channel of the DAC to the left channel of the
+    line level output driver.
 
-    _cm_to_left_mic_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 6)
-    _in2r_to_left_mic_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 4)
-    _in3r_to_left_mic_neg: int = RWBits(1, 2, _REG_LEFT_MICPGA_NEG, 2)
+    :default: `False`
+    """
 
-    _in1r_to_right_mic_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 6)
-    _in2r_to_right_mic_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 4)
-    _in3r_to_right_mic_pos: int = RWBits(1, 2, _REG_RIGHT_MICPGA_POS, 2)
+    right_dac_to_right_line_output: bool = _PagedRWBit(1, _REG_LOR_ROUTING, 3)
+    """Whether or not to route the output of the right channel of the DAC to the right channel of
+    the line level output driver.
 
-    _cm_to_right_mic_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 6)
-    _in1l_to_right_mic_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 4)
-    _in3l_to_right_mic_neg: int = RWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 2)
+    :default: `False`
+    """
 
-    _in1l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 7)
-    _in1r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 6)
-    _in2l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 5)
-    _in2r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 4)
-    _in3l_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 3)
-    _in3r_floating: bool = RWBit(1, _REG_FLOATING_INPUT, 2)
+    @property
+    def dac_to_line_output(self) -> bool:
+        """Whether or not to route the output of the DAC to the line level output driver.
+
+        :default: `False`
+        """
+        return self.left_dac_to_left_line_output or self.right_dac_to_right_line_output
+
+    @dac_to_line_output.setter
+    def dac_to_line_output(self, value: bool) -> None:
+        self.left_dac_to_left_line_output = value
+        self.right_dac_to_right_line_output = value
+
+    left_input_to_left_line_output: bool = _PagedRWBit(1, _REG_LOL_ROUTING, 1)
+    """Whether or not to route the output of the left channel of the input passthrough to the left
+    channel of the line level output driver. See
+    :attr:`TLV320AIC3204.left_input_passthrough_enabled` and
+    :attr:`TLV320AIC3204.left_input_passthrough_volume` to control the passthrough mixer.
+
+    :default: `False`
+    """
+
+    right_input_to_right_line_output: bool = _PagedRWBit(1, _REG_LOR_ROUTING, 1)
+    """Whether or not to route the output of the right channel of the input passthrough to the right
+    channel of the line level output driver. See
+    :attr:`TLV320AIC3204.right_input_passthrough_enabled` and
+    :attr:`TLV320AIC3204.right_input_passthrough_volume` to control the passthrough mixer.
+
+    :default: `False`
+    """
+
+    @property
+    def input_to_line_output(self) -> bool:
+        """Whether or not to route the output of the input passthrough to the line level output
+        driver. See :attr:`TLV320AIC3204.input_passthrough_enabled` and
+        :attr:`TLV320AIC3204.input_passthrough_volume` to control the passthrough mixer.
+
+        :default: `False`
+        """
+        return self.left_input_to_left_line_output or self.right_input_to_right_line_output
+
+    @input_to_line_output.setter
+    def input_to_line_output(self, value: bool) -> None:
+        self.left_input_to_left_line_output = value
+        self.right_input_to_right_line_output = value
+
+    # MICBIAS
+
+    micbias_enabled: bool = _PagedRWBit(1, _REG_MICBIAS, 6)
+    """The power state of the MICBIAS output.
+
+    :default: `False`
+    """
+
+    micbias_mode: int = _PagedRWBits(1, 2, _REG_MICBIAS, 4)
+    """The output voltage configuration of MICBIAS. See MICBIAS_MODE_* constants for valid settings.
+
+    :default: :const:`MICBIAS_MODE_1V25`
+    """
+
+    micbias_source: bool = _PagedRWBit(1, _REG_MICBIAS, 3)
+    """The voltage source of MICBIAS when :attr:`TLV320AIC3204.micbias_mode` is set as
+    :const:`MICBIAS_MODE_SOURCE`. See SOURCE_* constants for valid settings.
+
+    :default: :const:`SOURCE_AVDD`
+    """
+
+    # Input
+
+    _in1l_to_left_input_pos: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_POS, 6)
+    _in2l_to_left_input_pos: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_POS, 4)
+    _in3l_to_left_input_pos: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_POS, 2)
+
+    _cm_to_left_input_neg: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_NEG, 6)
+    _in2r_to_left_input_neg: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_NEG, 4)
+    _in3r_to_left_input_neg: int = _PagedRWBits(1, 2, _REG_LEFT_MICPGA_NEG, 2)
+
+    _in1r_to_right_input_pos: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_POS, 6)
+    _in2r_to_right_input_pos: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_POS, 4)
+    _in3r_to_right_input_pos: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_POS, 2)
+
+    _cm_to_right_input_neg: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 6)
+    _in1l_to_right_input_neg: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 4)
+    _in3l_to_right_input_neg: int = _PagedRWBits(1, 2, _REG_RIGHT_MICPGA_NEG, 2)
+
+    _in1l_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 7)
+    _in1r_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 6)
+    _in2l_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 5)
+    _in2r_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 4)
+    _in3l_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 3)
+    _in3r_floating: bool = _PagedRWBit(1, _REG_FLOATING_INPUT, 2)
 
     def _update_floating(self) -> None:
         self._in1l_floating = (
-            self._in1l_to_left_mic_pos != MIC_DISCONNECTED
-            or self._in1l_to_right_mic_neg != MIC_DISCONNECTED
+            self._in1l_to_left_input_pos != _DISCONNECTED
+            or self._in1l_to_right_input_neg != _DISCONNECTED
         )
-        self._in1r_floating = self._in1r_to_right_mic_pos != MIC_DISCONNECTED
-        self._in2l_floating = self._in2l_to_left_mic_pos != MIC_DISCONNECTED
+        self._in1r_floating = self._in1r_to_right_input_pos != _DISCONNECTED
+        self._in2l_floating = self._in2l_to_left_input_pos != _DISCONNECTED
         self._in2r_floating = (
-            self._in2r_to_left_mic_neg != MIC_DISCONNECTED
-            or self._in2r_to_right_mic_pos != MIC_DISCONNECTED
+            self._in2r_to_left_input_neg != _DISCONNECTED
+            or self._in2r_to_right_input_pos != _DISCONNECTED
         )
         self._in3l_floating = (
-            self._in3l_to_left_mic_pos != MIC_DISCONNECTED
-            or self._in3l_to_right_mic_neg != MIC_DISCONNECTED
+            self._in3l_to_left_input_pos != _DISCONNECTED
+            or self._in3l_to_right_input_neg != _DISCONNECTED
         )
         self._in3r_floating = (
-            self._in3r_to_left_mic_neg != MIC_DISCONNECTED
-            or self._in3r_to_right_mic_pos != MIC_DISCONNECTED
+            self._in3r_to_left_input_neg != _DISCONNECTED
+            or self._in3r_to_right_input_pos != _DISCONNECTED
         )
 
-    def connect_left_mic_input(
-        self, input: int, impedance: int = MIC_IMPEDANCE_10K, balanced: bool = False
+    def connect_left_input(
+        self, input: int, impedance: int = IMPEDANCE_10K, balanced: bool = False
     ) -> None:
-        if input == MIC_INPUT_1 and balanced:
+        """Connect an input source to the left channel of the input amplifier.
+
+        :param input: The desired input source. See INPUT_* constants for valid settings.
+        :param impedance: The amount of resistance to use when connecting to the input amplifier.
+            See IMPEDANCE_* for valid settings. Defaults to :const:`IMPEDANCE_10K`.
+        :param balanced: Whether or not to use both channels of an input source to drive the input
+            amplifier for balanced operation. Only supported with :const:`INPUT_2` and
+            :const:`INPUT_3`. Defaults to `False`.
+        """
+        if input == INPUT_1 and balanced:
             raise ValueError("Balanced IN1 input only supported on right channel")
 
-        self._in1l_to_left_mic_pos = impedance if input == MIC_INPUT_1 else MIC_DISCONNECTED
-        self._in2l_to_left_mic_pos = impedance if input == MIC_INPUT_2 else MIC_DISCONNECTED
-        self._in3l_to_left_mic_pos = impedance if input == MIC_INPUT_3 else MIC_DISCONNECTED
+        self._in1l_to_left_input_pos = impedance if input == INPUT_1 else _DISCONNECTED
+        self._in2l_to_left_input_pos = impedance if input == INPUT_2 else _DISCONNECTED
+        self._in3l_to_left_input_pos = impedance if input == INPUT_3 else _DISCONNECTED
 
-        self._cm_to_left_mic_neg = impedance if not balanced else MIC_DISCONNECTED
-        self._in2r_to_left_mic_neg = (
-            impedance if input == MIC_INPUT_2 and balanced else MIC_DISCONNECTED
-        )
-        self._in3r_to_left_mic_neg = (
-            impedance if input == MIC_INPUT_3 and balanced else MIC_DISCONNECTED
-        )
+        self._cm_to_left_input_neg = impedance if not balanced else _DISCONNECTED
+        self._in2r_to_left_input_neg = impedance if input == INPUT_2 and balanced else _DISCONNECTED
+        self._in3r_to_left_input_neg = impedance if input == INPUT_3 and balanced else _DISCONNECTED
 
         self._update_floating()
 
-    def connect_right_mic_input(
-        self, input: int, impedance: int = MIC_IMPEDANCE_10K, balanced: bool = False
+    def connect_right_input(
+        self, input: int, impedance: int = IMPEDANCE_10K, balanced: bool = False
     ) -> None:
-        if input == MIC_INPUT_2 and balanced:
+        """Connect an input source to the right channel of the input amplifier.
+
+        :param input: The desired input source. See INPUT_* constants for valid settings.
+        :param impedance: The amount of resistance to use when connecting to the input amplifier.
+            See IMPEDANCE_* for valid settings. Defaults to :const:`IMPEDANCE_10K`.
+        :param balanced: Whether or not to use both channels of an input source to drive the input
+            amplifier for balanced operation. Only supported with :const:`INPUT_1` and
+            :const:`INPUT_3`. Defaults to `False`.
+        """
+        if input == INPUT_2 and balanced:
             raise ValueError("Balanced IN2 input only supported on left channel")
 
-        self._in1r_to_right_mic_pos = impedance if input == MIC_INPUT_1 else MIC_DISCONNECTED
-        self._in2r_to_right_mic_pos = impedance if input == MIC_INPUT_2 else MIC_DISCONNECTED
-        self._in3r_to_right_mic_pos = impedance if input == MIC_INPUT_3 else MIC_DISCONNECTED
+        self._in1r_to_right_input_pos = impedance if input == INPUT_1 else _DISCONNECTED
+        self._in2r_to_right_input_pos = impedance if input == INPUT_2 else _DISCONNECTED
+        self._in3r_to_right_input_pos = impedance if input == INPUT_3 else _DISCONNECTED
 
-        self._cm_to_right_mic_neg = impedance if not balanced else MIC_DISCONNECTED
-        self._in1l_to_right_mic_neg = (
-            impedance if input == MIC_INPUT_1 and balanced else MIC_DISCONNECTED
+        self._cm_to_right_input_neg = impedance if not balanced else _DISCONNECTED
+        self._in1l_to_right_input_neg = (
+            impedance if input == INPUT_1 and balanced else _DISCONNECTED
         )
-        self._in3l_to_right_mic_neg = (
-            impedance if input == MIC_INPUT_3 and balanced else MIC_DISCONNECTED
+        self._in3l_to_right_input_neg = (
+            impedance if input == INPUT_3 and balanced else _DISCONNECTED
         )
 
         self._update_floating()
 
-    def connect_mic_input(self, input: int, impedance: int = MIC_IMPEDANCE_10K) -> None:
-        self.connect_left_mic_input(input, impedance)
-        self.connect_right_mic_input(input, impedance)
+    def connect_input(self, input: int, impedance: int = IMPEDANCE_10K) -> None:
+        """Connect an input source to both channels of the input amplifier. Only supports unbalanced
+        operation.
 
-    _left_mic_gain_disabled: bool = RWBit(1, _REG_LEFT_MICPGA_GAIN, 7)
-    _left_mic_gain: int = RWBits(1, 7, _REG_LEFT_MICPGA_GAIN, 0)
+        :param input: The desired input source. See INPUT_* constants for valid settings.
+        :param impedance: The amount of resistance to use when connecting to the input amplifier.
+            See IMPEDANCE_* for valid settings. Defaults to :const:`IMPEDANCE_10K`.
+        """
+        self.connect_left_input(input, impedance)
+        self.connect_right_input(input, impedance)
 
-    @property
-    def left_mic_gain(self) -> float:
-        return min(max(self._left_mic_gain, 0), 95) / 2 if not self._left_mic_gain_disabled else 0.0
-
-    @left_mic_gain.setter
-    def left_mic_gain(self, value: float) -> None:
-        value = min(max(round(value * 2), 0), 95)
-        self._left_mic_gain_disabled = value <= 0
-        self._left_mic_gain = value
-
-    _right_mic_gain_disabled: bool = RWBit(1, _REG_RIGHT_MICPGA_GAIN, 7)
-    _right_mic_gain: int = RWBits(1, 7, _REG_RIGHT_MICPGA_GAIN, 0)
+    _left_input_gain_disabled: bool = _PagedRWBit(1, _REG_LEFT_MICPGA_GAIN, 7)
+    _left_input_gain: int = _PagedRWBits(1, 7, _REG_LEFT_MICPGA_GAIN, 0)
 
     @property
-    def right_mic_gain(self) -> float:
+    def left_input_gain(self) -> float:
+        """The amount of gain in decibels of the left channel of the input amplifier from 0.0 dB to
+        47.5 dB in 0.5 dB increments.
+
+        :default: 0.0 dB
+        """
         return (
-            min(max(self._right_mic_gain, 0), 95) / 2 if not self._right_mic_gain_disabled else 0.0
+            min(max(self._left_input_gain, 0), 95) / 2
+            if not self._left_input_gain_disabled
+            else 0.0
         )
 
-    @right_mic_gain.setter
-    def right_mic_gain(self, value: float) -> None:
+    @left_input_gain.setter
+    def left_input_gain(self, value: float) -> None:
         value = min(max(round(value * 2), 0), 95)
-        self._right_mic_gain_disabled = value <= 0
-        self._right_mic_gain = value
+        self._left_input_gain_disabled = value <= 0
+        self._left_input_gain = value
+
+    _right_input_gain_disabled: bool = _PagedRWBit(1, _REG_RIGHT_MICPGA_GAIN, 7)
+    _right_input_gain: int = _PagedRWBits(1, 7, _REG_RIGHT_MICPGA_GAIN, 0)
 
     @property
-    def mic_gain(self) -> float:
-        return self.left_mic_gain
+    def right_input_gain(self) -> float:
+        """The amount of gain in decibels of the right channel of the input amplifier from 0.0 dB to
+        47.5 dB in 0.5 dB increments.
 
-    @mic_gain.setter
-    def mic_gain(self, value: float) -> None:
-        self.left_mic_gain = value
-        self.right_mic_gain = value
+        :default: 0.0 dB
+        """
+        return (
+            min(max(self._right_input_gain, 0), 95) / 2
+            if not self._right_input_gain_disabled
+            else 0.0
+        )
 
-    left_adc_enabled: bool = RWBit(0, _REG_ADC_CHANNEL_1, 7)
-    right_adc_enabled: bool = RWBit(0, _REG_ADC_CHANNEL_1, 6)
-
-    @property
-    def adc_enabled(self) -> bool:
-        return self.left_adc_enabled or self.right_adc_enabled
-
-    @adc_enabled.setter
-    def adc_enabled(self, value: bool) -> None:
-        self.left_adc_enabled = value
-        self.right_adc_enabled = value
-
-    left_adc_muted: bool = RWBit(0, _REG_ADC_CHANNEL_2, 7)
-    right_adc_muted: bool = RWBit(0, _REG_ADC_CHANNEL_2, 3)
+    @right_input_gain.setter
+    def right_input_gain(self, value: float) -> None:
+        value = min(max(round(value * 2), 0), 95)
+        self._right_input_gain_disabled = value <= 0
+        self._right_input_gain = value
 
     @property
-    def adc_muted(self) -> bool:
-        return self.left_adc_muted or self.right_adc_muted
+    def input_gain(self) -> float:
+        """The amount of gain in decibels of the input amplifier from 0.0 dB to 47.5 dB in 0.5 dB
+        increments.
 
-    @adc_muted.setter
-    def adc_muted(self, value: bool) -> None:
-        self.left_adc_muted = value
-        self.right_adc_muted = value
+        :default: 0.0 dB
+        """
+        return (self.left_input_gain + self.right_input_gain) / 2
 
-    _left_adc_volume: int = RWBits(0, 7, _REG_LEFT_ADC_VOLUME, 0, signed=True)
+    @input_gain.setter
+    def input_gain(self, value: float) -> None:
+        self.left_input_gain = value
+        self.right_input_gain = value
+
+    # Input Passthrough
+
+    left_input_passthrough_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 1)
+    """Whether or not the left channel of the input passthrough is powered.
+
+    :default: `False`
+    """
+
+    right_input_passthrough_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 0)
+    """Whether or not the right channel of the input passthrough is powered.
+
+    :default: `False`
+    """
 
     @property
-    def left_adc_volume(self) -> float:
-        return self._left_adc_volume / 2
+    def input_passthrough_enabled(self) -> bool:
+        """Whether or not both channels of the input passthrough are powered.
 
-    @left_adc_volume.setter
-    def left_adc_volume(self, value: float) -> None:
-        self._left_adc_volume = min(max(round(value * 2), -24), 40)
+        :default: `False`
+        """
+        return self.left_input_passthrough_enabled or self.right_input_passthrough_amp_enabled
 
-    _right_adc_volume: int = RWBits(0, 7, _REG_RIGHT_ADC_VOLUME, 0, signed=True)
+    @input_passthrough_enabled.setter
+    def input_passthrough_enabled(self, value: bool) -> None:
+        self.left_input_passthrough_enabled = value
+        self.right_input_passthrough_enabled = value
+
+    left_input_passthrough_volume: float = _PagedVolumeRWBits(
+        1, _REG_MIXER_LEFT_VOLUME, _UINT6_VOLUME_TABLE, True
+    )
+    """The volume of the left channel of the input passthrough from -30.1 dB to 0.0 dB. If set to a
+    value below -30.1 dB, the passthrough will be muted.
+
+    :default: 0.0 dB
+    """
+
+    right_input_passthrough_volume: float = _PagedVolumeRWBits(
+        1, _REG_MIXER_RIGHT_VOLUME, _UINT6_VOLUME_TABLE, True
+    )
+    """The volume of the right channel of the input passthrough from -30.1 dB to 0.0 dB. If set to a
+    value below -30.1 dB, the passthrough will be muted.
+
+    :default: 0.0 dB
+    """
 
     @property
-    def right_adc_volume(self) -> float:
-        return self._right_adc_volume / 2
+    def input_passthrough_volume(self) -> float:
+        """The volume of both channels of the input passthrough from -30.1 dB to 0.0 dB. If set to a
+        value below -30.1 dB, the passthrough will be muted.
 
-    @right_adc_volume.setter
-    def right_adc_volume(self, value: float) -> None:
-        self._right_adc_volume = min(max(round(value * 2), -24), 40)
+        :default: 0.0 dB
+        """
+        return (self.left_input_passthrough_volume + self.right_input_passthrough_volume) / 2
 
-    @property
-    def adc_volume(self) -> float:
-        return self.left_adc_volume
-
-    @adc_volume.setter
-    def adc_volume(self, value: float) -> None:
-        self.left_adc_volume = value
-        self.right_adc_volume = value
+    @input_passthrough_volume.setter
+    def input_passthrough_volume(self, value: float) -> None:
+        self.left_input_passthrough_volume = value
+        self.right_input_passthrough_volume = value

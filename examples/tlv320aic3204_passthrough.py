@@ -18,19 +18,19 @@ codec = relic_tlv320aic3204.TLV320AIC3204(
 # codec.input1_to_headphone_output_volume = 0.0  # dB
 
 # Enable mic input and connect to desired source
-codec.mic_gain = 0.0  # dB
-codec.connect_mic_input(relic_tlv320aic3204.MIC_INPUT_1)
+codec.connect_input(relic_tlv320aic3204.INPUT_1)
+codec.input_gain = 0.0  # dB
 
 # Setup Passthrough Input Mixer
-codec.input_mixer_enabled = True
-codec.input_mixer_volume = 0.0  # dB
+codec.input_passthrough_enabled = True
+codec.input_passthrough_volume = 0.0  # dB
 
 # Line Output
-codec.input_mixer_to_line_output = True
+codec.input_to_line_output = True
 codec.line_output_enabled = True
 codec.line_output_muted = False
 
 # Headphone Output
-# codec.input_mixer_to_headphone_output = True
+# codec.input_to_headphone_output = True
 # codec.headphone_output_enabled = True
 # codec.headphone_output_muted = False
