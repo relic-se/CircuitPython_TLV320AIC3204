@@ -1157,7 +1157,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     :default: `False`
     """
-    
+
     right_line_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 2)
     """Whether or not the right channel of the line level output driver is powered.
 
@@ -1232,10 +1232,25 @@ class TLV320AIC3204:  # noqa: PLR0904
     # Line Output Routing
 
     left_dac_to_left_line_output: bool = _PagedRWBit(1, _REG_LOL_ROUTING, 3)
+    """Whether or not to route the output of the left channel of the DAC to the left channel of the
+    line level output driver.
+
+    :default: `False`
+    """
+
     right_dac_to_right_line_output: bool = _PagedRWBit(1, _REG_LOR_ROUTING, 3)
+    """Whether or not to route the output of the right channel of the DAC to the right channel of
+    the line level output driver.
+
+    :default: `False`
+    """
 
     @property
     def dac_to_line_output(self) -> bool:
+        """Whether or not to route the output of the DAC to the line level output driver.
+
+        :default: `False`
+        """
         return self.left_dac_to_left_line_output or self.right_dac_to_right_line_output
 
     @dac_to_line_output.setter
@@ -1244,10 +1259,31 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.right_dac_to_right_line_output = value
 
     left_input_to_left_line_output: bool = _PagedRWBit(1, _REG_LOL_ROUTING, 1)
+    """Whether or not to route the output of the left channel of the input passthrough to the left
+    channel of the line level output driver. See
+    :attr:`TLV320AIC3204.left_input_passthrough_enabled` and
+    :attr:`TLV320AIC3204.left_input_passthrough_volume` to control the passthrough mixer.
+
+    :default: `False`
+    """
+
     right_input_to_right_line_output: bool = _PagedRWBit(1, _REG_LOR_ROUTING, 1)
+    """Whether or not to route the output of the right channel of the input passthrough to the right
+    channel of the line level output driver. See
+    :attr:`TLV320AIC3204.right_input_passthrough_enabled` and
+    :attr:`TLV320AIC3204.right_input_passthrough_volume` to control the passthrough mixer.
+
+    :default: `False`
+    """
 
     @property
     def input_to_line_output(self) -> bool:
+        """Whether or not to route the output of the input passthrough to the line level output
+        driver. See :attr:`TLV320AIC3204.input_passthrough_enabled` and
+        :attr:`TLV320AIC3204.input_passthrough_volume` to control the passthrough mixer.
+
+        :default: `False`
+        """
         return self.left_input_to_left_line_output or self.right_input_to_right_line_output
 
     @input_to_line_output.setter
