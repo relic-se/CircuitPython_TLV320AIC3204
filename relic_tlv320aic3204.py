@@ -1153,10 +1153,23 @@ class TLV320AIC3204:  # noqa: PLR0904
     # Line Output
 
     left_line_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 3)
+    """Whether or not the left channel of the line level output driver is powered.
+
+    :default: `False`
+    """
+    
     right_line_output_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 2)
+    """Whether or not the right channel of the line level output driver is powered.
+
+    :default: `False`
+    """
 
     @property
     def line_output_enabled(self) -> bool:
+        """Whether or not the line level output driver is powered.
+
+        :default: `False`
+        """
         return self.left_line_output_enabled or self.right_line_output_enabled
 
     @line_output_enabled.setter
@@ -1165,10 +1178,23 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.right_line_output_enabled = value
 
     left_line_output_muted: bool = _PagedRWBit(1, _REG_LOL_GAIN, 6)
+    """Whether or not the left channel of the line level output driver is muted.
+
+    :default: `True`
+    """
+
     right_line_output_muted: bool = _PagedRWBit(1, _REG_LOR_GAIN, 6)
+    """Whether or not the right channel of the line level output driver is muted.
+
+    :default: `True`
+    """
 
     @property
     def line_output_muted(self) -> bool:
+        """Whether or not the line level output driver is muted.
+
+        :default: `True`
+        """
         return self.left_line_output_muted or self.right_line_output_muted
 
     @line_output_muted.setter
@@ -1177,10 +1203,25 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.right_line_output_muted = value
 
     left_line_output_gain: int = _PagedRWBits(1, 6, _REG_LOL_GAIN, 0, signed=True)
+    """The amount of gain in decibels of the left channel of the line level output driver from -6 dB
+    to 29 dB.
+
+    :default: 0 dB
+    """
+
     right_line_output_gain: int = _PagedRWBits(1, 6, _REG_LOR_GAIN, 0, signed=True)
+    """The amount of gain in decibels of the right channel of the line level output driver from -6
+    dB to 29 dB.
+
+    :default: 0 dB
+    """
 
     @property
     def line_output_gain(self) -> int:
+        """The amount of gain in decibels of the line level output driver from -6 dB to 29 dB.
+
+        :default: 0 dB
+        """
         return (self.left_line_output_gain + self.right_line_output_gain) // 2
 
     @line_output_gain.setter
