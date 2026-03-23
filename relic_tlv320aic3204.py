@@ -720,7 +720,8 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def dac_enabled(self) -> bool:
-        """The power state of the DAC. Must be enabled to use either the DAC or ADC.
+        """The power state of both channels of the DAC. Must be enabled to use either the DAC or
+        ADC.
 
         :default: `False`
         """
@@ -853,8 +854,8 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def adc_enabled(self) -> bool:
-        """The power state of the ADC. Also depends on :attr:`TLV320AIC3204.dac_enabled`. Both must
-        be set as `True` to use ADC.
+        """The power state of both channels of the ADC. Also depends on
+        :attr:`TLV320AIC3204.dac_enabled`. Both must be set as `True` to use ADC.
 
         :default: `False`
         """
@@ -1166,7 +1167,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def line_output_enabled(self) -> bool:
-        """Whether or not the line level output driver is powered.
+        """Whether or not both channels of the line level output driver are powered.
 
         :default: `False`
         """
@@ -1483,10 +1484,23 @@ class TLV320AIC3204:  # noqa: PLR0904
     # Input Passthrough
 
     left_input_passthrough_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 1)
+    """Whether or not the left channel of the input passthrough is powered.
+
+    :default: `False`
+    """
+
     right_input_passthrough_enabled: bool = _PagedRWBit(1, _REG_OUTPUT_DRIVER_POWER, 0)
+    """Whether or not the right channel of the input passthrough is powered.
+
+    :default: `False`
+    """
 
     @property
     def input_passthrough_enabled(self) -> bool:
+        """Whether or not both channels of the input passthrough are powered.
+
+        :default: `False`
+        """
         return self.left_input_passthrough_enabled or self.right_input_passthrough_amp_enabled
 
     @input_passthrough_enabled.setter
@@ -1497,12 +1511,28 @@ class TLV320AIC3204:  # noqa: PLR0904
     left_input_passthrough_volume: float = _PagedVolumeRWBits(
         1, _REG_MIXER_LEFT_VOLUME, _UINT6_VOLUME_TABLE, True
     )
+    """The volume of the left channel of the input passthrough from -30.1 dB to 0.0 dB. If set to a
+    value below -30.1 dB, the passthrough will be muted.
+
+    :default: 0.0 dB
+    """
+
     right_input_passthrough_volume: float = _PagedVolumeRWBits(
         1, _REG_MIXER_RIGHT_VOLUME, _UINT6_VOLUME_TABLE, True
     )
+    """The volume of the right channel of the input passthrough from -30.1 dB to 0.0 dB. If set to a
+    value below -30.1 dB, the passthrough will be muted.
+
+    :default: 0.0 dB
+    """
 
     @property
     def input_passthrough_volume(self) -> float:
+        """The volume of both channels of the input passthrough from -30.1 dB to 0.0 dB. If set to a
+        value below -30.1 dB, the passthrough will be muted.
+
+        :default: 0.0 dB
+        """
         return (self.left_input_passthrough_volume + self.right_input_passthrough_volume) / 2
 
     @input_passthrough_volume.setter
