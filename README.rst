@@ -79,7 +79,7 @@ following command to install:
 
 .. code-block:: shell
 
-    circup install tlv320aic3204
+    circup install relic_tlv320aic3204
 
 Or the following command to update an existing version:
 
