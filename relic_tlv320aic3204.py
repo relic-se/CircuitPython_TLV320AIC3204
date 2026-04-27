@@ -466,6 +466,128 @@ class _PagedVolumeRWBits(_PagedRWBits):
         super().__set__(obj, value)
 
 
+class _Biquad:
+    _buffer: bytearray = bytearray(4)
+
+    def __init__(self, dac: bool, right_channel: bool, index: int):
+        self._dac = dac  # False is ADC, True is DAC
+        self._right_channel = right_channel  # False is left channel, True is right channel
+        self._biquad_index = min(max(index, 0), 5 if self._dac else 4)
+        self._coefficient_index_start = (
+            (1 if self._dac else 7) + (32 * self._right_channel) + (self._biquad_index * 5)
+        )
+        self._d0 = None  # In case default values are read
+
+    def _get_coefficient_page(self, buffer_b: bool, index: int) -> int:
+        return (44 if self._dac else 8) + (18 * buffer_b) + (index // 30)
+
+    @staticmethod
+    def _get_coefficient_register(index: int) -> int:
+        return 8 + (index % 30) * 4
+
+    def _set_coefficient(
+        self, i2c_device: I2CDevice, buffer_b: bool, index: int, value: int
+    ) -> None:
+        if index < 0 or index > 255:
+            raise ValueError("Invalid coefficient index")
+
+        self._buffer[0] = self._get_coefficient_register(index)
+        for i in range(3):
+            self._buffer[i + 1] = (value >> ((2 - i) * 8)) & 0xFF
+
+        self._page = self._get_coefficient_page(buffer_b, index)
+        with i2c_device as i2c:
+            i2c.write(self._buffer)
+
+    def _get_coefficient(self, i2c_device: I2CDevice, buffer_b: bool, index: int) -> int:
+        if index < 0 or index > 255:
+            raise ValueError("Invalid coefficient index")
+
+        self._buffer[0] = self._get_coefficient_register(index)
+        self._page = self._get_coefficient_page(buffer_b, index)
+
+        with i2c_device as i2c:
+            i2c.write_then_readinto(self._buffer, self._buffer, out_end=1, in_start=1)
+
+        value = 0
+        for i in range(3):
+            value |= self._buffer[i + 1] << ((2 - i) * 8)
+        return value
+
+    def __get__(
+        self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
+    ):
+        buffer_b = not (
+            obj._dac_adaptive_filter_buffer if self._dac else obj._adc_adaptive_filter_buffer
+        )
+
+        n0, n1, n2, d1, d2 = (
+            self._get_coefficient(
+                obj.i2c_device, buffer_b, self._coefficient_index_start + index
+            )
+            for index in range(5)
+        )
+
+        # convert fixed point (24-bit, two's complement) to float
+        n0, n1, n2, d1, d2 = (
+            ((~x if x & (1 << 23) else x) & ((1 << 23) - 1)) / (1 << 23)
+            for x in (n0, n1, n2, d1, d2)
+        )
+
+        # denormalize
+        if self._d0 is not None:
+            n0 *= self._d0
+            n1 *= self._d0 * 2
+            n2 *= self._d0
+            d1 *= -self._d0 * 2
+            d2 *= -self._d0
+
+        return (n0, n1, n2, self._d0, d1, d2)
+
+    def __set__(self, obj: I2CDeviceDriver, value: tuple[float]|None):
+        if value is not None and len(value) != 6:
+            raise ValueError(
+                "Biquad coefficients must be provided as a tuple of N0, N1, N2, D0, D1, D2"
+            )
+
+        buffer_b = not (
+            obj._dac_adaptive_filter_buffer if self._dac else obj._adc_adaptive_filter_buffer
+        )
+
+        if value is not None:
+            # unpack
+            n0, n1, n2, d0, d1, d2 = value
+            self._d0  # store for denormalization
+
+            # normalize
+            n0 /= d0
+            n1 /= d0 * 2
+            n2 /= d0
+            d1 /= -d0 * 2
+            d2 /= -d0
+
+            # avoid overflow
+            k = max([abs(x) for x in (n0, n1, n2)])
+            if k > 0.9999998807907104:
+                k /= 0.9999998807907104
+                n0 /= k
+                n1 /= k
+                n2 /= k
+
+            # convert float to fixed point (24-bit, two's complement)
+            n0, n1, n2, d1, d2 = (
+                min(int(round(x * (1 << 23))), (1 << 23) - 1) % (1 << 24) for x in (n0, n1, n2, d1, d2)
+            )
+        else:
+            n0, n1, n2, d1, d2 = (0x7fffff, 0, 0, 0, 0)  # default
+
+        # write coefficients to registers
+        for index, coefficient in enumerate((n0, n1, n2, d1, d2)):
+            self._set_coefficient(
+                obj.i2c_device, buffer_b, self._coefficient_index_start + index, coefficient
+            )
+
+
 class TLV320AIC3204:  # noqa: PLR0904
     """Driver for the TI TLV320AIC3204 Stereo Codec with Line Inputs, Mic Inputs, Line Outputs and
     Headphone Amplifier.
@@ -520,6 +642,13 @@ class TLV320AIC3204:  # noqa: PLR0904
 
         self.sample_rate = 44100
         self.bit_depth = 16
+
+        # Enable adaptive filters
+        self.adc_processing_block = 2  # PRB_R2, 5 biquads
+        self._adc_adaptive_filter_enabled = True
+
+        self.dac_processing_block = 3  # PRB_P3, 6 biquads, no DRC
+        self._dac_adaptive_filter_enabled = True
 
     def reset(self) -> None:
         """Perform a full reset of the device configuration registers. If a reset pin was provided,
@@ -1539,3 +1668,140 @@ class TLV320AIC3204:  # noqa: PLR0904
     def input_passthrough_volume(self, value: float) -> None:
         self.left_input_passthrough_volume = value
         self.right_input_passthrough_volume = value
+
+    # ADC Biquad Filters
+
+    adc_adaptive_filter_set: bool = _PagedRWBit(8, 1, 0)
+    _adc_adaptive_filter_buffer: bool = _PagedRWBit(8, 1, 1)
+    _adc_adaptive_filter_enabled: bool = _PagedRWBit(8, 1, 2)
+
+    left_adc_biquad_a: tuple = _Biquad(False, False, 0)
+    left_adc_biquad_b: tuple = _Biquad(False, False, 1)
+    left_adc_biquad_c: tuple = _Biquad(False, False, 2)
+    left_adc_biquad_d: tuple = _Biquad(False, False, 3)
+    left_adc_biquad_e: tuple = _Biquad(False, False, 4)
+
+    right_adc_biquad_a: tuple = _Biquad(False, True, 0)
+    right_adc_biquad_b: tuple = _Biquad(False, True, 1)
+    right_adc_biquad_c: tuple = _Biquad(False, True, 2)
+    right_adc_biquad_d: tuple = _Biquad(False, True, 3)
+    right_adc_biquad_e: tuple = _Biquad(False, True, 4)
+
+    @property
+    def adc_biquad_a(self) -> tuple:
+        return self.left_adc_biquad_a
+
+    @adc_biquad_a.setter
+    def adc_biquad_a(self, value: tuple) -> None:
+        self.left_adc_biquad_a = value
+        self.right_adc_biquad_a = value
+
+    @property
+    def adc_biquad_b(self) -> tuple:
+        return self.left_adc_biquad_b
+
+    @adc_biquad_b.setter
+    def adc_biquad_b(self, value: tuple) -> None:
+        self.left_adc_biquad_b = value
+        self.right_adc_biquad_b = value
+
+    @property
+    def adc_biquad_c(self) -> tuple:
+        return self.left_adc_biquad_c
+
+    @adc_biquad_c.setter
+    def adc_biquad_c(self, value: tuple) -> None:
+        self.left_adc_biquad_c = value
+        self.right_adc_biquad_c = value
+
+    @property
+    def adc_biquad_d(self) -> tuple:
+        return self.left_adc_biquad_d
+
+    @adc_biquad_d.setter
+    def adc_biquad_d(self, value: tuple) -> None:
+        self.left_adc_biquad_d = value
+        self.right_adc_biquad_d = value
+
+    @property
+    def adc_biquad_e(self) -> tuple:
+        return self.left_adc_biquad_e
+
+    @adc_biquad_e.setter
+    def adc_biquad_e(self, value: tuple) -> None:
+        self.left_adc_biquad_e = value
+        self.right_adc_biquad_e = value
+
+    # DAC Biquad Filters
+
+    dac_adaptive_filter_set: bool = _PagedRWBit(44, 1, 0)
+    _dac_adaptive_filter_buffer: bool = _PagedRWBit(44, 1, 1)
+    _dac_adaptive_filter_enabled: bool = _PagedRWBit(44, 1, 2)
+
+    left_dac_biquad_a: tuple = _Biquad(True, False, 0)
+    left_dac_biquad_b: tuple = _Biquad(True, False, 1)
+    left_dac_biquad_c: tuple = _Biquad(True, False, 2)
+    left_dac_biquad_d: tuple = _Biquad(True, False, 3)
+    left_dac_biquad_e: tuple = _Biquad(True, False, 4)
+    left_dac_biquad_f: tuple = _Biquad(True, False, 5)
+
+    right_dac_biquad_a: tuple = _Biquad(True, True, 0)
+    right_dac_biquad_b: tuple = _Biquad(True, True, 1)
+    right_dac_biquad_c: tuple = _Biquad(True, True, 2)
+    right_dac_biquad_d: tuple = _Biquad(True, True, 3)
+    right_dac_biquad_e: tuple = _Biquad(True, True, 4)
+    right_dac_biquad_f: tuple = _Biquad(True, True, 5)
+
+    @property
+    def dac_biquad_a(self) -> tuple:
+        return self.left_dac_biquad_a
+
+    @dac_biquad_a.setter
+    def dac_biquad_a(self, value: tuple) -> None:
+        self.left_dac_biquad_a = value
+        self.right_dac_biquad_a = value
+
+    @property
+    def dac_biquad_b(self) -> tuple:
+        return self.left_dac_biquad_b
+
+    @dac_biquad_b.setter
+    def dac_biquad_b(self, value: tuple) -> None:
+        self.left_dac_biquad_b = value
+        self.right_dac_biquad_b = value
+
+    @property
+    def dac_biquad_c(self) -> tuple:
+        return self.left_dac_biquad_c
+
+    @dac_biquad_c.setter
+    def dac_biquad_c(self, value: tuple) -> None:
+        self.left_dac_biquad_c = value
+        self.right_dac_biquad_c = value
+
+    @property
+    def dac_biquad_d(self) -> tuple:
+        return self.left_dac_biquad_d
+
+    @dac_biquad_d.setter
+    def dac_biquad_d(self, value: tuple) -> None:
+        self.left_dac_biquad_d = value
+        self.right_dac_biquad_d = value
+
+    @property
+    def dac_biquad_e(self) -> tuple:
+        return self.left_dac_biquad_e
+
+    @dac_biquad_e.setter
+    def dac_biquad_e(self, value: tuple) -> None:
+        self.left_dac_biquad_e = value
+        self.right_dac_biquad_e = value
+
+    @property
+    def dac_biquad_f(self) -> tuple:
+        return self.left_dac_biquad_f
+
+    @dac_biquad_f.setter
+    def dac_biquad_f(self, value: tuple) -> None:
+        self.left_dac_biquad_f = value
+        self.right_dac_biquad_f = value
