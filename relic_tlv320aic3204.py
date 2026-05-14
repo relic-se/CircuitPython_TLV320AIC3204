@@ -518,8 +518,9 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.dac_volume = -63.5
         self.adc_volume = -12.0
 
-        self.sample_rate = 44100
+        self.audio_interface = AUDIO_INTERFACE_I2S
         self.bit_depth = 16
+        self.sample_rate = 44100
 
     def reset(self) -> None:
         """Perform a full reset of the device configuration registers. If a reset pin was provided,
@@ -655,33 +656,29 @@ class TLV320AIC3204:  # noqa: PLR0904
 
         self._sample_rate = value
 
-        # 1. Ensure DAC, ADC and PLL are powered down
+        # Ensure DAC, ADC and PLL are powered down
         self.dac_enabled = False
         self.adc_enabled = False
         self._pll_enabled = False
         time.sleep(0.001)
 
-        # 2. Set PLL clock scaling registers
+        # Set PLL clock scaling registers
         self._pll_p = p
         self._pll_r = r
         self._pll_j = j
         self._pll_d = d
 
-        # 3. Set mux for PLL input clock source (PLL_CLKIN)
+        # Set mux for PLL input clock source (PLL_CLKIN)
         self._pll_clkin = _PLL_CLKIN_BCLK if self._mclk is None else _PLL_CLKIN_MCLK
 
-        # 4. Power up  PLL and wait briefly for PLL lock
+        # Power up  PLL and wait briefly for PLL lock
         self._pll_enabled = True
         time.sleep(0.01)
 
-        # 5. Set mux to route PLL output (PLL_CLK) to CODEC_CLKIN
+        # Set mux to route PLL output (PLL_CLK) to CODEC_CLKIN
         self._codec_clkin = _CODEC_CLKIN_PLL
 
-        # 6. Set the data format
-        self.audio_interface = AUDIO_INTERFACE_I2S
-        self.bit_depth = 16
-
-        # 7. Configure codec clock dividers for oversampling and DSP
+        # Configure codec clock dividers for oversampling and DSP
         self._ndac = ndac
         self._ndac_enabled = True
         self._mdac = mdac
