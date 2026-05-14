@@ -564,8 +564,8 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @property
     def bit_depth(self) -> int:
-        """The number of bits per sample. Although the values of 16, 20, 24, and 32 are possible,
-        only 16 is supported by CircuitPython.
+        """The number of bits per sample. The values of 16, 20, 24, and 32 are possible, but
+        only 16 is supported by `audiobusio.I2SOut`.
 
         :default: 16
         """
@@ -573,8 +573,8 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @bit_depth.setter
     def bit_depth(self, value: int) -> None:
-        if value != 16:
-            raise ValueError("CircuitPython I2S only supports 16-bit stereo")
+        if value not in {16, 20, 24, 32}:
+            raise ValueError("Need a valid bit depth: 16, 20, 24, or 32")
         self._bit_depth = (value - 16) // 4
 
     # Clocking
