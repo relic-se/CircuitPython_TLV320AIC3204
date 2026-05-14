@@ -570,13 +570,14 @@ class TLV320AIC3204:  # noqa: PLR0904
 
         :default: 16
         """
-        return 16 + self._bit_depth * 4
+        value = self._bit_depth
+        return 16 + (4 if value == 0b11 else value) * 4
 
     @bit_depth.setter
     def bit_depth(self, value: int) -> None:
         if value not in {16, 20, 24, 32}:
             raise ValueError("Need a valid bit depth: 16, 20, 24, or 32")
-        self._bit_depth = (value - 16) // 4
+        self._bit_depth = min((value - 16) // 4, 0b11)
 
     # Clocking
 
