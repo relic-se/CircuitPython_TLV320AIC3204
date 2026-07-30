@@ -1338,22 +1338,22 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     def _update_floating(self) -> None:
         self._in1l_floating = (
-            self._in1l_to_left_input_pos != _DISCONNECTED
-            or self._in1l_to_right_input_neg != _DISCONNECTED
+            self._in1l_to_left_input_pos == _DISCONNECTED
+            and self._in1l_to_right_input_neg == _DISCONNECTED
         )
-        self._in1r_floating = self._in1r_to_right_input_pos != _DISCONNECTED
-        self._in2l_floating = self._in2l_to_left_input_pos != _DISCONNECTED
+        self._in1r_floating = self._in1r_to_right_input_pos == _DISCONNECTED
+        self._in2l_floating = self._in2l_to_left_input_pos == _DISCONNECTED
         self._in2r_floating = (
-            self._in2r_to_left_input_neg != _DISCONNECTED
-            or self._in2r_to_right_input_pos != _DISCONNECTED
+            self._in2r_to_left_input_neg == _DISCONNECTED
+            and self._in2r_to_right_input_pos == _DISCONNECTED
         )
         self._in3l_floating = (
-            self._in3l_to_left_input_pos != _DISCONNECTED
-            or self._in3l_to_right_input_neg != _DISCONNECTED
+            self._in3l_to_left_input_pos == _DISCONNECTED
+            and self._in3l_to_right_input_neg == _DISCONNECTED
         )
         self._in3r_floating = (
-            self._in3r_to_left_input_neg != _DISCONNECTED
-            or self._in3r_to_right_input_pos != _DISCONNECTED
+            self._in3r_to_left_input_neg == _DISCONNECTED
+            and self._in3r_to_right_input_pos == _DISCONNECTED
         )
 
     def connect_left_input(
