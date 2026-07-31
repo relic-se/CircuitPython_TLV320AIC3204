@@ -58,6 +58,8 @@ _REG_NDAC = const(0x0B)
 _REG_MDAC = const(0x0C)
 _REG_DAC_OSR_MSB = const(0x0D)
 _REG_DAC_OSR_LSB = const(0x0E)
+_REG_NADC = const(0x12)
+_REG_MADC = const(0x13)
 _REG_ADC_OSR = const(0x14)
 _REG_AUDIO_INTERFACE_1 = const(0x1B)
 _REG_AUDIO_INTERFACE_3 = const(0x1D)
@@ -368,6 +370,29 @@ IMPEDANCE_20K = const(0b10)
 IMPEDANCE_40K = const(0b11)
 """Connect an input using 40k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
 
+_SAMPLE_RATES = (8000, 16000, 32000, 48000, 11025, 22050, 44100)
+
+_PLL_CONFIG_BCLK = (
+    # (PLLP, PLLR, PLLJ, PLLD, NDAC, MDAC, DOSR, AOSR)
+    (1, 3, 20, 0,  5, 3, 128,  5, 3, _ADC_OSR_128),  # 8000
+    (1, 2, 34, 0, 17, 1, 128, 17, 1, _ADC_OSR_128),  # 16000
+    (1, 2, 34, 0, 17, 1, 128, 17, 1, _ADC_OSR_128),  # 32000
+    (1, 2, 34, 0, 17, 1, 128, 17, 1, _ADC_OSR_128),  # 48000
+    (1, 3, 20, 0,  5, 3, 128,  5, 3, _ADC_OSR_128),  # 11025
+    (1, 4, 38, 0, 19, 1, 256, 19, 1, _ADC_OSR_256),  # 22050
+    (1, 2, 38, 0, 19, 1, 128, 19, 1, _ADC_OSR_128),  # 44100
+)
+
+_PLL_CONFIG_MCLK = (
+    # (PLLP, PLLR, PLLJ, PLLD, NDAC, MDAC, DOSR, NADC, MADC, AOSR)
+    (1, 1, 8, 1920, 8, 2, 768, 8, 12, _ADC_OSR_128),  # 8000
+    (1, 1, 8, 1920, 6, 4, 256, 8,  6, _ADC_OSR_128),  # 16000
+    (1, 1, 8, 1920, 6, 4, 128, 6,  4, _ADC_OSR_128),  # 32000
+    (1, 1, 7, 1680, 7, 2, 128, 7,  2, _ADC_OSR_128),  # 48000
+    (1, 1, 7,  560, 5, 6, 256, 5, 12, _ADC_OSR_128),  # 11025
+    (1, 1, 7,  560, 5, 3, 256, 5,  6, _ADC_OSR_128),  # 22050
+    (1, 1, 7,  560, 5, 3, 128, 5,  3, _ADC_OSR_128),  # 44100
+)
 
 class _PagedRWBit(RWBit):
     def __init__(  # noqa: PLR0913
@@ -497,7 +522,7 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.i2c_device: I2CDevice = I2CDevice(i2c, address)
 
         self._mclk = (
-            pwmio.PWMOut(mclk, frequency=15_000_000, duty_cycle=2**15) if mclk is not None else None
+            pwmio.PWMOut(mclk, frequency=12_000_000, duty_cycle=2**15) if mclk is not None else None
         )
 
         if rst is not None:
@@ -625,6 +650,14 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._dac_osr_lsb = value & 0xFF
         self._dac_osr_msb = (value >> 8) & 0x03
 
+    _nadc_enabled: bool = _PagedRWBit(0, _REG_NADC, 7)
+
+    _nadc: int = _PagedRWBits(0, 7, _REG_NADC, 0)
+
+    _madc_enabled: bool = _PagedRWBit(0, _REG_MADC, 7)
+
+    _madc: int = _PagedRWBits(0, 7, _REG_MADC, 0)
+
     _adc_osr: int = _PagedRWBits(0, 8, _REG_ADC_OSR, 0)
 
     @property
@@ -633,32 +666,12 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @sample_rate.setter
     def sample_rate(self, value: int) -> None:
-        if value not in {8000, 11025, 22050, 44100, 48000}:
-            raise ValueError("Need a valid sample rate: 8000, 11025, 22050, 44100, or 48000")
-
-        aosr = _ADC_OSR_128  # TODO: Validate with adc_processing_block. See Table 2.
-        if self._mclk is None:
-            if value == 22050:
-                p, r, j, d, ndac, mdac, dosr, aosr = 1, 4, 38, 0, 19, 1, 256, _ADC_OSR_256
-            elif value == 44100:
-                p, r, j, d, ndac, mdac, dosr = 1, 2, 38, 0, 19, 1, 128
-            elif value == 48000:
-                p, r, j, d, ndac, mdac, dosr = 1, 2, 34, 0, 17, 1, 128
-            elif value in {8000, 11025}:
-                # These PLL tuning values will cause distortion
-                p, r, j, d, ndac, mdac, dosr = 1, 3, 20, 0, 5, 3, 128
-        elif value == 8000:
-            p, r, j, d, ndac, mdac, dosr = 1, 1, 6, 9632, 17, 1, 768
-        elif value == 11025:
-            p, r, j, d, ndac, mdac, dosr = 5, 1, 35, 7504, 19, 1, 512
-        elif value == 22050:
-            p, r, j, d, ndac, mdac, dosr, aosr = 5, 1, 35, 7504, 19, 1, 256, _ADC_OSR_256
-        elif value == 44100:
-            p, r, j, d, ndac, mdac, dosr = 5, 1, 35, 7504, 19, 1, 128
-        elif value == 48000:
-            p, r, j, d, ndac, mdac, dosr = 1, 1, 6, 9632, 17, 1, 128
-
+        if value not in _SAMPLE_RATES:
+            raise ValueError("Need a valid sample rate: {}".format(", ".join(_SAMPLE_RATES)))
         self._sample_rate = value
+
+        config = _PLL_CONFIG_BCLK if self._mclk is None else _PLL_CONFIG_MCLK
+        p, r, j, d, ndac, mdac, dosr, nadc, madc, aosr = config[_SAMPLE_RATES.index(value)]
 
         # Ensure DAC, ADC and PLL are powered down
         self.dac_enabled = False
@@ -688,6 +701,11 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._mdac = mdac
         self._mdac_enabled = True
         self._dac_osr = dosr
+
+        self._nadc = nadc
+        self._nadc_enabled = True
+        self._madc = madc
+        self._madc_enabled = True
         self._adc_osr = aosr
 
     # DAC
