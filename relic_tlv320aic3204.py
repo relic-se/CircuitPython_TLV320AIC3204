@@ -124,9 +124,9 @@ _REF_FORCE_POWERUP_40MS = const(0b101)
 _REF_FORCE_POWERUP_80MS = const(0b110)
 _REF_FORCE_POWERUP_120MS = const(0b111)
 
-_INPUT_POWERUP_3_1MS = const(0b01)
-_INPUT_POWERUP_6_4MS = const(0b10)
-_INPUT_POWERUP_1_6MS = const(0b11)
+_INPUT_POWERUP_3_1MS = const(0b110001)
+_INPUT_POWERUP_6_4MS = const(0b110010)
+_INPUT_POWERUP_1_6MS = const(0b110011)
 
 _UINT7_VOLUME_TABLE = (
     0,  #       0  Begin linear segment: round((-1.99 * dB) - 0.2)
