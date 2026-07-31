@@ -509,7 +509,7 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._power_isolation = True
         self._avdd_ldo_enabled = True
         self._reference_powerup = _REF_POWERUP_40MS
-        self._input_powerup = _INPUT_POWERUP_3_1MS
+        self._input_powerup = _INPUT_POWERUP_6_4MS
         self._analog_block_power_disabled = False
         self._line_output_power_source = SOURCE_LDOIN
         self._headphone_output_ldoin_3v3 = True
