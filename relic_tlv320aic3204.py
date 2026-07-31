@@ -664,7 +664,7 @@ class TLV320AIC3204:  # noqa: PLR0904
     @property
     def sample_rate(self) -> int:
         """The target sampling rate of the ADC and DAC interface in Hz. Supports the
-        following values: 8000, 11025, 22050, 44100 and 48000.
+        following values: 8000, 11025, 16000, 22050, 32000, 44100 and 48000.
 
         :default: 44100
         """
