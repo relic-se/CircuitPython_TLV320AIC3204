@@ -479,17 +479,20 @@ class TLV320AIC3204:  # noqa: PLR0904
         mclk: microcontroller.Pin = None,
         rst: microcontroller.Pin = None,
         address: int = _DEFAULT_I2C_ADDR,
+        sample_rate: int = 44100,
     ) -> None:
-        """Initialize the TLV320AIC3204. The I2S bus will default to a sample rate of 44.1 kHz and
-        bit depth of 16 bits. Power will be configured according to Figure 21 of the datasheet with
-        3.3V power to LDOIN for high performance operation.
+        """Initialize the TLV320AIC3204. The I2S bus will default to a bit depth of 16 bits. Power
+        will be configured according to Figure 21 of the datasheet with 3.3V power to LDOIN for
+        high performance operation.
 
         :param i2c: The I2C bus the device is connected to.
-        :param mclk: The main clock pin. If provided, it will be driven at 15 MHz to improve audio
+        :param mclk: The main clock pin. If provided, it will be driven at 12 MHz to improve audio
             quality, especially at lower sample rates.
         :param rst: The reset pin. If provided, calling :attr:`TLV320AIC3204.reset` will perform a
             hardware reset rather than a software reset for more dependable operation.
         :param address: The I2C device address (default is 0x18).
+        :param sample_rate: The desired sample rate of the I2S bus. Must be 8000, 11025, 16000,
+            22050, 32000, 44100 or 48000.
         """
         self.i2c_device: I2CDevice = I2CDevice(i2c, address)
 
@@ -520,7 +523,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
         self.audio_interface = AUDIO_INTERFACE_I2S
         self.bit_depth = 16
-        self.sample_rate = 44100
+        self.sample_rate = sample_rate
 
     def reset(self) -> None:
         """Perform a full reset of the device configuration registers. If a reset pin was provided,
