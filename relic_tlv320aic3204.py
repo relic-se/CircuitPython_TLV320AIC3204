@@ -58,6 +58,8 @@ _REG_NDAC = const(0x0B)
 _REG_MDAC = const(0x0C)
 _REG_DAC_OSR_MSB = const(0x0D)
 _REG_DAC_OSR_LSB = const(0x0E)
+_REG_NADC = const(0x12)
+_REG_MADC = const(0x13)
 _REG_ADC_OSR = const(0x14)
 _REG_AUDIO_INTERFACE_1 = const(0x1B)
 _REG_AUDIO_INTERFACE_3 = const(0x1D)
@@ -124,9 +126,9 @@ _REF_FORCE_POWERUP_40MS = const(0b101)
 _REF_FORCE_POWERUP_80MS = const(0b110)
 _REF_FORCE_POWERUP_120MS = const(0b111)
 
-_INPUT_POWERUP_3_1MS = const(0b01)
-_INPUT_POWERUP_6_4MS = const(0b10)
-_INPUT_POWERUP_1_6MS = const(0b11)
+_INPUT_POWERUP_3_1MS = const(0b110001)
+_INPUT_POWERUP_6_4MS = const(0b110010)
+_INPUT_POWERUP_1_6MS = const(0b110011)
 
 _UINT7_VOLUME_TABLE = (
     0,  #       0  Begin linear segment: round((-1.99 * dB) - 0.2)
@@ -362,11 +364,35 @@ _DISCONNECTED = const(0b00)
 IMPEDANCE_10K = const(0b01)
 """Connect an input using 10k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
 
-IMPEDANCE_20K = const(0b01)
+IMPEDANCE_20K = const(0b10)
 """Connect an input using 20k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
 
-IMPEDANCE_40K = const(0b01)
+IMPEDANCE_40K = const(0b11)
 """Connect an input using 40k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
+
+_SAMPLE_RATES = (8000, 16000, 32000, 48000, 11025, 22050, 44100)
+
+_PLL_CONFIG_BCLK = (
+    # (PLLP, PLLR, PLLJ, PLLD, NDAC, MDAC, DOSR, AOSR)
+    (1, 3, 20, 0, 5, 3, 128, 5, 3, _ADC_OSR_128),  # 8000
+    (1, 2, 34, 0, 17, 1, 128, 17, 1, _ADC_OSR_128),  # 16000
+    (1, 2, 34, 0, 17, 1, 128, 17, 1, _ADC_OSR_128),  # 32000
+    (1, 2, 34, 0, 17, 1, 128, 17, 1, _ADC_OSR_128),  # 48000
+    (1, 3, 20, 0, 5, 3, 128, 5, 3, _ADC_OSR_128),  # 11025
+    (1, 4, 38, 0, 19, 1, 256, 19, 1, _ADC_OSR_256),  # 22050
+    (1, 2, 38, 0, 19, 1, 128, 19, 1, _ADC_OSR_128),  # 44100
+)
+
+_PLL_CONFIG_MCLK = (
+    # (PLLP, PLLR, PLLJ, PLLD, NDAC, MDAC, DOSR, NADC, MADC, AOSR)
+    (1, 1, 8, 1920, 8, 2, 768, 8, 12, _ADC_OSR_128),  # 8000
+    (1, 1, 8, 1920, 6, 4, 256, 8, 6, _ADC_OSR_128),  # 16000
+    (1, 1, 8, 1920, 6, 4, 128, 6, 4, _ADC_OSR_128),  # 32000
+    (1, 1, 7, 1680, 7, 2, 128, 7, 2, _ADC_OSR_128),  # 48000
+    (1, 1, 7, 560, 5, 6, 256, 5, 12, _ADC_OSR_128),  # 11025
+    (1, 1, 7, 560, 5, 3, 256, 5, 6, _ADC_OSR_128),  # 22050
+    (1, 1, 7, 560, 5, 3, 128, 5, 3, _ADC_OSR_128),  # 44100
+)
 
 
 class _PagedRWBit(RWBit):
@@ -473,28 +499,31 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     _page: int = _CacheBits(8, _REG_PAGE, 0)
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         i2c: I2C,
         mclk: microcontroller.Pin = None,
         rst: microcontroller.Pin = None,
         address: int = _DEFAULT_I2C_ADDR,
+        sample_rate: int = 44100,
     ) -> None:
-        """Initialize the TLV320AIC3204. The I2S bus will default to a sample rate of 44.1 kHz and
-        bit depth of 16 bits. Power will be configured according to Figure 21 of the datasheet with
-        3.3V power to LDOIN for high performance operation.
+        """Initialize the TLV320AIC3204. The I2S bus will default to a bit depth of 16 bits. Power
+        will be configured according to Figure 21 of the datasheet with 3.3V power to LDOIN for
+        high performance operation.
 
         :param i2c: The I2C bus the device is connected to.
-        :param mclk: The main clock pin. If provided, it will be driven at 15 MHz to improve audio
+        :param mclk: The main clock pin. If provided, it will be driven at 12 MHz to improve audio
             quality, especially at lower sample rates.
         :param rst: The reset pin. If provided, calling :attr:`TLV320AIC3204.reset` will perform a
             hardware reset rather than a software reset for more dependable operation.
         :param address: The I2C device address (default is 0x18).
+        :param sample_rate: The desired sample rate of the I2S bus. Must be 8000, 11025, 16000,
+            22050, 32000, 44100 or 48000.
         """
         self.i2c_device: I2CDevice = I2CDevice(i2c, address)
 
         self._mclk = (
-            pwmio.PWMOut(mclk, frequency=15_000_000, duty_cycle=2**15) if mclk is not None else None
+            pwmio.PWMOut(mclk, frequency=12_000_000, duty_cycle=2**15) if mclk is not None else None
         )
 
         if rst is not None:
@@ -509,7 +538,7 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._power_isolation = True
         self._avdd_ldo_enabled = True
         self._reference_powerup = _REF_POWERUP_40MS
-        self._input_powerup = _INPUT_POWERUP_3_1MS
+        self._input_powerup = _INPUT_POWERUP_6_4MS
         self._analog_block_power_disabled = False
         self._line_output_power_source = SOURCE_LDOIN
         self._headphone_output_ldoin_3v3 = True
@@ -520,7 +549,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
         self.audio_interface = AUDIO_INTERFACE_I2S
         self.bit_depth = 16
-        self.sample_rate = 44100
+        self.sample_rate = sample_rate
 
     def reset(self) -> None:
         """Perform a full reset of the device configuration registers. If a reset pin was provided,
@@ -622,6 +651,14 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._dac_osr_lsb = value & 0xFF
         self._dac_osr_msb = (value >> 8) & 0x03
 
+    _nadc_enabled: bool = _PagedRWBit(0, _REG_NADC, 7)
+
+    _nadc: int = _PagedRWBits(0, 7, _REG_NADC, 0)
+
+    _madc_enabled: bool = _PagedRWBit(0, _REG_MADC, 7)
+
+    _madc: int = _PagedRWBits(0, 7, _REG_MADC, 0)
+
     _adc_osr: int = _PagedRWBits(0, 8, _REG_ADC_OSR, 0)
 
     @property
@@ -635,32 +672,12 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     @sample_rate.setter
     def sample_rate(self, value: int) -> None:
-        if value not in {8000, 11025, 22050, 44100, 48000}:
-            raise ValueError("Need a valid sample rate: 8000, 11025, 22050, 44100, or 48000")
-
-        aosr = _ADC_OSR_128  # TODO: Validate with adc_processing_block. See Table 2.
-        if self._mclk is None:
-            if value == 22050:
-                p, r, j, d, ndac, mdac, dosr, aosr = 1, 4, 38, 0, 19, 1, 256, _ADC_OSR_256
-            elif value == 44100:
-                p, r, j, d, ndac, mdac, dosr = 1, 2, 38, 0, 19, 1, 128
-            elif value == 48000:
-                p, r, j, d, ndac, mdac, dosr = 1, 2, 34, 0, 17, 1, 128
-            elif value in {8000, 11025}:
-                # These PLL tuning values will cause distortion
-                p, r, j, d, ndac, mdac, dosr = 1, 3, 20, 0, 5, 3, 128
-        elif value == 8000:
-            p, r, j, d, ndac, mdac, dosr = 1, 1, 6, 9632, 17, 1, 768
-        elif value == 11025:
-            p, r, j, d, ndac, mdac, dosr = 5, 1, 35, 7504, 19, 1, 512
-        elif value == 22050:
-            p, r, j, d, ndac, mdac, dosr, aosr = 5, 1, 35, 7504, 19, 1, 256, _ADC_OSR_256
-        elif value == 44100:
-            p, r, j, d, ndac, mdac, dosr = 5, 1, 35, 7504, 19, 1, 128
-        elif value == 48000:
-            p, r, j, d, ndac, mdac, dosr = 1, 1, 6, 9632, 17, 1, 128
-
+        if value not in _SAMPLE_RATES:
+            raise ValueError("Need a valid sample rate: {}".format(", ".join(_SAMPLE_RATES)))
         self._sample_rate = value
+
+        config = _PLL_CONFIG_BCLK if self._mclk is None else _PLL_CONFIG_MCLK
+        p, r, j, d, ndac, mdac, dosr, nadc, madc, aosr = config[_SAMPLE_RATES.index(value)]
 
         # Ensure DAC, ADC and PLL are powered down
         self.dac_enabled = False
@@ -690,6 +707,11 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._mdac = mdac
         self._mdac_enabled = True
         self._dac_osr = dosr
+
+        self._nadc = nadc
+        self._nadc_enabled = True
+        self._madc = madc
+        self._madc_enabled = True
         self._adc_osr = aosr
 
     # DAC
@@ -1343,22 +1365,22 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     def _update_floating(self) -> None:
         self._in1l_floating = (
-            self._in1l_to_left_input_pos != _DISCONNECTED
-            or self._in1l_to_right_input_neg != _DISCONNECTED
+            self._in1l_to_left_input_pos == _DISCONNECTED
+            and self._in1l_to_right_input_neg == _DISCONNECTED
         )
-        self._in1r_floating = self._in1r_to_right_input_pos != _DISCONNECTED
-        self._in2l_floating = self._in2l_to_left_input_pos != _DISCONNECTED
+        self._in1r_floating = self._in1r_to_right_input_pos == _DISCONNECTED
+        self._in2l_floating = self._in2l_to_left_input_pos == _DISCONNECTED
         self._in2r_floating = (
-            self._in2r_to_left_input_neg != _DISCONNECTED
-            or self._in2r_to_right_input_pos != _DISCONNECTED
+            self._in2r_to_left_input_neg == _DISCONNECTED
+            and self._in2r_to_right_input_pos == _DISCONNECTED
         )
         self._in3l_floating = (
-            self._in3l_to_left_input_pos != _DISCONNECTED
-            or self._in3l_to_right_input_neg != _DISCONNECTED
+            self._in3l_to_left_input_pos == _DISCONNECTED
+            and self._in3l_to_right_input_neg == _DISCONNECTED
         )
         self._in3r_floating = (
-            self._in3r_to_left_input_neg != _DISCONNECTED
-            or self._in3r_to_right_input_pos != _DISCONNECTED
+            self._in3r_to_left_input_neg == _DISCONNECTED
+            and self._in3r_to_right_input_pos == _DISCONNECTED
         )
 
     def connect_left_input(
