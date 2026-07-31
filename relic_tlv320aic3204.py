@@ -362,10 +362,10 @@ _DISCONNECTED = const(0b00)
 IMPEDANCE_10K = const(0b01)
 """Connect an input using 10k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
 
-IMPEDANCE_20K = const(0b01)
+IMPEDANCE_20K = const(0b10)
 """Connect an input using 20k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
 
-IMPEDANCE_40K = const(0b01)
+IMPEDANCE_40K = const(0b11)
 """Connect an input using 40k resistance. Use with :attr:`TLV320AIC3204.connect_input`."""
 
 
