@@ -540,8 +540,8 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._reference_powerup = _REF_POWERUP_40MS
         self._input_powerup = _INPUT_POWERUP_6_4MS
         self._analog_block_power_disabled = False
+        self._ldoin_3v3 = True
         self._line_output_power_source = SOURCE_LDOIN
-        self._headphone_output_ldoin_3v3 = True
         self._headphone_output_power_source = SOURCE_LDOIN
 
         self.dac_volume = -63.5
@@ -576,11 +576,11 @@ class TLV320AIC3204:  # noqa: PLR0904
 
     _input_powerup: int = _PagedRWBits(1, 6, _REG_INPUT_POWERUP, 0)
 
+    _ldoin_3v3: bool = _PagedRWBit(1, _REG_COMMON_MODE, 0)
+
     _line_output_power_source: bool = _PagedRWBit(1, _REG_COMMON_MODE, 3)
 
-    _headphone_output_ldoin_3v3: bool = _PagedRWBit(1, _REG_COMMON_MODE, 0)
-
-    _headphone_output_power_source: bool = _PagedRWBit(1, _REG_COMMON_MODE, 3)
+    _headphone_output_power_source: bool = _PagedRWBit(1, _REG_COMMON_MODE, 1)
 
     # Audio Interface
 
