@@ -372,15 +372,19 @@ IMPEDANCE_40K = const(0b11)
 
 _SAMPLE_RATES = (8000, 16000, 32000, 48000, 11025, 22050, 44100)
 
+# PLL configurations when BCLK (32 * sample rate) is the PLL input. Each row keeps PLL_CLK within
+# 80-103 MHz, DOSR * sample rate within 2.8-6.2 MHz and MDAC * DOSR / 32 (MADC * AOSR / 32) at or
+# above the resource class of the default processing blocks. Rates of `None` are not possible
+# because BCLK would be below the minimum PLL input frequency of 512 kHz.
 _PLL_CONFIG_BCLK = (
-    # (PLLP, PLLR, PLLJ, PLLD, NDAC, MDAC, DOSR, AOSR)
-    (1, 3, 20, 0, 5, 3, 128, 5, 3, _ADC_OSR_128),  # 8000
-    (1, 2, 34, 0, 17, 1, 128, 17, 1, _ADC_OSR_128),  # 16000
-    (1, 2, 34, 0, 17, 1, 128, 17, 1, _ADC_OSR_128),  # 32000
-    (1, 2, 34, 0, 17, 1, 128, 17, 1, _ADC_OSR_128),  # 48000
-    (1, 3, 20, 0, 5, 3, 128, 5, 3, _ADC_OSR_128),  # 11025
-    (1, 4, 38, 0, 19, 1, 256, 19, 1, _ADC_OSR_256),  # 22050
-    (1, 2, 38, 0, 19, 1, 128, 19, 1, _ADC_OSR_128),  # 44100
+    # (PLLP, PLLR, PLLJ, PLLD, NDAC, MDAC, DOSR, NADC, MADC, AOSR)
+    None,  # 8000
+    (1, 4, 48, 0, 6, 4, 256, 8, 6, _ADC_OSR_128),  # 16000
+    (1, 2, 48, 0, 6, 4, 128, 6, 4, _ADC_OSR_128),  # 32000
+    (1, 1, 56, 0, 7, 2, 128, 7, 2, _ADC_OSR_128),  # 48000
+    None,  # 11025
+    (1, 2, 60, 0, 5, 3, 256, 5, 6, _ADC_OSR_128),  # 22050
+    (1, 1, 60, 0, 5, 3, 128, 5, 3, _ADC_OSR_128),  # 44100
 )
 
 _PLL_CONFIG_MCLK = (
@@ -664,7 +668,9 @@ class TLV320AIC3204:  # noqa: PLR0904
     @property
     def sample_rate(self) -> int:
         """The target sampling rate of the ADC and DAC interface in Hz. Supports the
-        following values: 8000, 11025, 16000, 22050, 32000, 44100 and 48000.
+        following values: 8000, 11025, 16000, 22050, 32000, 44100 and 48000. The rates of 8000 and
+        11025 are only available if a main clock pin was provided because the bit clock is too slow
+        to drive the PLL.
 
         :default: 44100
         """
@@ -674,10 +680,14 @@ class TLV320AIC3204:  # noqa: PLR0904
     def sample_rate(self, value: int) -> None:
         if value not in _SAMPLE_RATES:
             raise ValueError("Need a valid sample rate: {}".format(", ".join(_SAMPLE_RATES)))
-        self._sample_rate = value
 
-        config = _PLL_CONFIG_BCLK if self._mclk is None else _PLL_CONFIG_MCLK
-        p, r, j, d, ndac, mdac, dosr, nadc, madc, aosr = config[_SAMPLE_RATES.index(value)]
+        config = (_PLL_CONFIG_BCLK if self._mclk is None else _PLL_CONFIG_MCLK)[
+            _SAMPLE_RATES.index(value)
+        ]
+        if config is None:
+            raise ValueError("Sample rate requires a main clock")
+        self._sample_rate = value
+        p, r, j, d, ndac, mdac, dosr, nadc, madc, aosr = config
 
         # Ensure DAC, ADC and PLL are powered down
         self.dac_enabled = False
