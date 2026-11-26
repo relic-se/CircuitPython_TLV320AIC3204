@@ -510,24 +510,46 @@ class TLV320AIC3204:  # noqa: PLR0904
         rst: microcontroller.Pin = None,
         address: int = _DEFAULT_I2C_ADDR,
         sample_rate: int = 44100,
+        *,
+        mclk_frequency: int = 12_000_000,
+        mclk_multiplier: int = None,
     ) -> None:
         """Initialize the TLV320AIC3204. The I2S bus will default to a bit depth of 16 bits. Power
         will be configured according to Figure 21 of the datasheet with 3.3V power to LDOIN for
         high performance operation.
 
         :param i2c: The I2C bus the device is connected to.
-        :param mclk: The main clock pin. If provided, it will be driven at 12 MHz to improve audio
-            quality, especially at lower sample rates.
+        :param mclk: The main clock pin. If provided, it will be driven at ``mclk_frequency`` and
+            used as the clock source of the codec instead of the bit clock. The I2S bus must be
+            clocked from the same source as this pin or samples will be dropped or repeated.
         :param rst: The reset pin. If provided, calling :attr:`TLV320AIC3204.reset` will perform a
             hardware reset rather than a software reset for more dependable operation.
         :param address: The I2C device address (default is 0x18).
         :param sample_rate: The desired sample rate of the I2S bus. Must be 8000, 11025, 16000,
             22050, 32000, 44100 or 48000.
+        :param mclk_frequency: The frequency in Hz to drive the main clock pin at. Must be left at
+            the default of 12 MHz unless ``mclk_multiplier`` is set. Check that the board is able to
+            generate this frequency exactly.
+        :param mclk_multiplier: If provided, the main clock is used directly without the PLL for
+            the lowest jitter. ``mclk_frequency`` must then be exactly this multiple of the actual
+            frame rate of the I2S bus. Must be a multiple of 128 from 256 to 1024 and is limited to
+            sample rates of 22050 and above.
         """
         self.i2c_device: I2CDevice = I2CDevice(i2c, address)
 
+        if mclk_multiplier is not None:
+            if mclk is None:
+                raise ValueError("mclk_multiplier requires a main clock pin")
+            if mclk_multiplier % 128 or not 256 <= mclk_multiplier <= 1024:
+                raise ValueError("mclk_multiplier must be a multiple of 128 from 256 to 1024")
+        elif mclk_frequency != 12_000_000:
+            raise ValueError("mclk_frequency must be 12 MHz without mclk_multiplier")
+        self._mclk_multiplier = mclk_multiplier
+
         self._mclk = (
-            pwmio.PWMOut(mclk, frequency=12_000_000, duty_cycle=2**15) if mclk is not None else None
+            pwmio.PWMOut(mclk, frequency=mclk_frequency, duty_cycle=2**15)
+            if mclk is not None
+            else None
         )
 
         if rst is not None:
@@ -683,13 +705,17 @@ class TLV320AIC3204:  # noqa: PLR0904
                 "Need a valid sample rate: {}".format(", ".join(map(str, _SAMPLE_RATES)))
             )
 
-        config = (_PLL_CONFIG_BCLK if self._mclk is None else _PLL_CONFIG_MCLK)[
-            _SAMPLE_RATES.index(value)
-        ]
-        if config is None:
-            raise ValueError("Sample rate requires a main clock")
+        config = None
+        if self._mclk_multiplier is not None:
+            if value < 22050:
+                raise ValueError("Sample rate must be at least 22050 with mclk_multiplier")
+        else:
+            config = (_PLL_CONFIG_BCLK if self._mclk is None else _PLL_CONFIG_MCLK)[
+                _SAMPLE_RATES.index(value)
+            ]
+            if config is None:
+                raise ValueError("Sample rate requires a main clock")
         self._sample_rate = value
-        p, r, j, d, ndac, mdac, dosr, nadc, madc, aosr = config
 
         # Ensure DAC, ADC and PLL are powered down
         self.dac_enabled = False
@@ -697,21 +723,33 @@ class TLV320AIC3204:  # noqa: PLR0904
         self._pll_enabled = False
         time.sleep(0.001)
 
-        # Set PLL clock scaling registers
-        self._pll_p = p
-        self._pll_r = r
-        self._pll_j = j
-        self._pll_d = d
+        if self._mclk_multiplier is not None:
+            # Divide MCLK down to the sample rate with an oversampling ratio of 128
+            ndac = nadc = 1
+            mdac = madc = self._mclk_multiplier // 128
+            dosr = 128
+            aosr = _ADC_OSR_128
 
-        # Set mux for PLL input clock source (PLL_CLKIN)
-        self._pll_clkin = _PLL_CLKIN_BCLK if self._mclk is None else _PLL_CLKIN_MCLK
+            # Set mux to route MCLK to CODEC_CLKIN and leave the PLL powered down
+            self._codec_clkin = _CODEC_CLKIN_MCLK
+        else:
+            p, r, j, d, ndac, mdac, dosr, nadc, madc, aosr = config
 
-        # Power up  PLL and wait briefly for PLL lock
-        self._pll_enabled = True
-        time.sleep(0.01)
+            # Set PLL clock scaling registers
+            self._pll_p = p
+            self._pll_r = r
+            self._pll_j = j
+            self._pll_d = d
 
-        # Set mux to route PLL output (PLL_CLK) to CODEC_CLKIN
-        self._codec_clkin = _CODEC_CLKIN_PLL
+            # Set mux for PLL input clock source (PLL_CLKIN)
+            self._pll_clkin = _PLL_CLKIN_BCLK if self._mclk is None else _PLL_CLKIN_MCLK
+
+            # Power up  PLL and wait briefly for PLL lock
+            self._pll_enabled = True
+            time.sleep(0.01)
+
+            # Set mux to route PLL output (PLL_CLK) to CODEC_CLKIN
+            self._codec_clkin = _CODEC_CLKIN_PLL
 
         # Configure codec clock dividers for oversampling and DSP
         self._ndac = ndac
