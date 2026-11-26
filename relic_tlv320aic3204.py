@@ -443,27 +443,21 @@ class _PagedRWBits(RWBits):
         super().__set__(obj, int(value))
 
 
-class _CacheBits(RWBits):
-    def __init__(  # noqa: PLR0913, PLR0917
-        self,
-        num_bits: int,
-        register_address: int,
-        lowest_bit: int,
-        register_width: int = 1,
-        lsb_first: bool = True,
-        signed: bool = False,
-    ):
-        super().__init__(num_bits, register_address, lowest_bit, register_width, lsb_first, signed)
-        self._value = None
+class _PageRegister:
+    """Selects the register page, only writing to the device when the page changes. The selected
+    page is stored on the driver object as ``_page_cache`` and is `None` when unknown.
+    """
 
     def __get__(
         self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
-    ) -> int:
-        return super().__get__(obj, objtype) if self._value is None else self._value
+    ) -> Optional[int]:
+        return obj._page_cache
 
     def __set__(self, obj: I2CDeviceDriver, value: int):
-        self._value = value
-        super().__set__(obj, int(value))
+        if value != obj._page_cache:
+            with obj.i2c_device as i2c:
+                i2c.write(bytes((_REG_PAGE, value)))
+            obj._page_cache = value
 
 
 class _PagedVolumeRWBits(_PagedRWBits):
@@ -497,7 +491,8 @@ class TLV320AIC3204:  # noqa: PLR0904
     Headphone Amplifier.
     """
 
-    _page: int = _CacheBits(8, _REG_PAGE, 0)
+    _page: int = _PageRegister()
+    _page_cache = None
 
     def __init__(  # noqa: PLR0913
         self,
@@ -563,6 +558,9 @@ class TLV320AIC3204:  # noqa: PLR0904
         else:
             self._reset = True
         time.sleep(0.01)
+
+        # The device returns to page 0 after a reset, force the next access to select its page
+        self._page_cache = None
 
     # Power
 
