@@ -1048,7 +1048,7 @@ class TLV320AIC3204:  # noqa: PLR0904
     :default: `False`
     """
 
-    right_dac_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPL_ROUTING, 3)
+    right_dac_to_right_headphone_output: bool = _PagedRWBit(1, _REG_HPR_ROUTING, 3)
     """Whether or not to route the output of the right channel of the DAC to the right channel of
     the headphone amplifier.
 
