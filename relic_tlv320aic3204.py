@@ -247,8 +247,7 @@ _UINT7_VOLUME_TABLE = (
     -64.3,  # 113
     -66.2,  # 114
     -68.7,  # 115
-    -72.2,  # 116  End curved segment
-    -78.3,  # 117  Begin constant segment -78.3 dB
+    -72.3,  # 116  End curved segment, followed by mute
 )
 
 _UINT6_VOLUME_TABLE = (
@@ -481,15 +480,17 @@ class _PagedVolumeRWBits(_PagedRWBits):
         else:
             return self._table[min(max(value, 0), len(self._table) - 1)]
 
-    def __set__(self, obj: I2CDeviceDriver, value: int):
-        value = min(max(value, self._table[-1]), self._table[0])
-        for i, db in enumerate(self._table):
-            if value >= db:
-                value = i
-                break
-        if isinstance(value, float):
-            value = len(self._table) - (0 if self._mute else 1)
-        super().__set__(obj, value)
+    def __set__(self, obj: I2CDeviceDriver, value: float):
+        if self._mute and value < self._table[-1]:
+            # The mute setting directly follows the last entry of the table
+            index = len(self._table)
+        else:
+            index = len(self._table) - 1
+            for i, db in enumerate(self._table):
+                if value >= db:
+                    index = i
+                    break
+        super().__set__(obj, index)
 
 
 class TLV320AIC3204:  # noqa: PLR0904
