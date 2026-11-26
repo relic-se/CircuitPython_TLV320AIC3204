@@ -531,7 +531,7 @@ class TLV320AIC3204:  # noqa: PLR0904
             self._reset.direction = digitalio.Direction.OUTPUT
             self._reset.value = True
         else:
-            self._reset = _PagedRWBit(0, _REG_SOFTWARE_RESET, 0)
+            self._reset = None
         self.reset()
 
         # Power Configuration (See Figure 21)
@@ -551,17 +551,19 @@ class TLV320AIC3204:  # noqa: PLR0904
         self.bit_depth = 16
         self.sample_rate = sample_rate
 
+    _software_reset: bool = _PagedRWBit(0, _REG_SOFTWARE_RESET, 0)
+
     def reset(self) -> None:
         """Perform a full reset of the device configuration registers. If a reset pin was provided,
         a hardware reset will be performed rather than a software reset.
         """
-        if isinstance(self._reset, digitalio.DigitalInOut):
+        if self._reset is not None:
             self._reset.value = False
             time.sleep(0.002)
             self._reset.value = True
             time.sleep(0.002)
         else:
-            self._reset = True
+            self._software_reset = True
         time.sleep(0.01)
 
     # Power
