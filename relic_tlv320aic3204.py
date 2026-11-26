@@ -679,7 +679,9 @@ class TLV320AIC3204:  # noqa: PLR0904
     @sample_rate.setter
     def sample_rate(self, value: int) -> None:
         if value not in _SAMPLE_RATES:
-            raise ValueError("Need a valid sample rate: {}".format(", ".join(_SAMPLE_RATES)))
+            raise ValueError(
+                "Need a valid sample rate: {}".format(", ".join(map(str, _SAMPLE_RATES)))
+            )
 
         config = (_PLL_CONFIG_BCLK if self._mclk is None else _PLL_CONFIG_MCLK)[
             _SAMPLE_RATES.index(value)
