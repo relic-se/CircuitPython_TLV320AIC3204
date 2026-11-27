@@ -1539,7 +1539,7 @@ class TLV320AIC3204:  # noqa: PLR0904
 
         :default: `False`
         """
-        return self.left_input_passthrough_enabled or self.right_input_passthrough_amp_enabled
+        return self.left_input_passthrough_enabled or self.right_input_passthrough_enabled
 
     @input_passthrough_enabled.setter
     def input_passthrough_enabled(self, value: bool) -> None:
