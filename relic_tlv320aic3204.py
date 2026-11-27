@@ -434,6 +434,7 @@ class _PagedRWBits(RWBits):
     ):
         super().__init__(num_bits, register_address, lowest_bit, register_width, lsb_first, signed)
         self._page = page
+        self._value_mask = (1 << num_bits) - 1
 
     def __get__(
         self, obj: Optional[I2CDeviceDriver], objtype: Optional[Type[I2CDeviceDriver]] = None
@@ -443,7 +444,10 @@ class _PagedRWBits(RWBits):
 
     def __set__(self, obj: I2CDeviceDriver, value: int):
         obj._page = self._page
-        super().__set__(obj, int(value))
+        # RWBits does not limit the value to the bits of the field. A negative value has all of its
+        # upper bits set and would set the other bits of the register with it, so it is written as
+        # its two's complement within the field.
+        super().__set__(obj, int(value) & self._value_mask)
 
 
 class _PageRegister:
