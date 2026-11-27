@@ -531,6 +531,16 @@ class TLV320AIC3204:  # noqa: PLR0904
             frame rate of the I2S bus. Must be a multiple of 128 from 256 to 1024 and is limited to
             sample rates of 22050 and above.
         """
+        # Perform the hardware reset before looking for the device on the I2C bus. The codec may
+        # not respond until it has been reset after power-up.
+        if rst is not None:
+            self._reset = digitalio.DigitalInOut(rst)
+            self._reset.direction = digitalio.Direction.OUTPUT
+            self._reset.value = True
+            self.reset()
+        else:
+            self._reset = None
+
         self.i2c_device: I2CDevice = I2CDevice(i2c, address)
 
         if mclk_multiplier is not None:
@@ -548,13 +558,8 @@ class TLV320AIC3204:  # noqa: PLR0904
             else None
         )
 
-        if rst is not None:
-            self._reset = digitalio.DigitalInOut(rst)
-            self._reset.direction = digitalio.Direction.OUTPUT
-            self._reset.value = True
-        else:
-            self._reset = None
-        self.reset()
+        if self._reset is None:
+            self.reset()
 
         # Power Configuration (See Figure 21)
         self._power_isolation = True
